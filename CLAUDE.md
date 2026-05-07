@@ -6,7 +6,7 @@ PHP library (`oliver-hader/secrets-kms`) that implements a file-backed key manag
 
 - **Namespace**: `OliverHader\SecretsKms` (PSR-4, `src/`)
 - **Tests namespace**: `OliverHader\SecretsKms\Tests` (PSR-4, `tests/`)
-- **PHP**: 8.2+ (`#[\SensitiveParameter]` requires 8.2)
+- **PHP**: 8.1+ (`#[\SensitiveParameter]` is silently ignored on 8.1, effective on 8.2+)
 - **Test runner**: `vendor/bin/phpunit --testdox`
 
 ## Architecture
