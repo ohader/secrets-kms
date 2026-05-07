@@ -19,11 +19,16 @@ final class Manager
         $this->keyPair = $key instanceof KeyPair ? $key : KeyPair::fromSeed($key);
     }
 
+    public function hasDomain(string $name): bool
+    {
+        return isset($this->storage->load()['domains'][$name]);
+    }
+
     public function createDomain(string $name, PublicKey ...$publicKeys): void
     {
         $data = $this->storage->load();
 
-        if (isset($data['domains'][$name])) {
+        if ($this->hasDomain($name)) {
             throw new RuntimeException(
                 sprintf('Domain "%s" already exists', $name),
                 1778152622,
@@ -44,10 +49,10 @@ final class Manager
         $ownPublicKey = $this->keyPair->getPublicKey();
         $recipients[$ownPublicKey->getEncoded()] ??= $ownPublicKey;
 
-        $keysMap = [];
-        foreach ($recipients as $encodedKey => $pk) {
-            $keysMap[$encodedKey] = $this->sealDataKey($dataKey, $pk);
-        }
+        $keysMap = array_map(
+            fn(PublicKey $pk): string => $this->sealDataKey($dataKey, $pk),
+            $recipients
+        );
 
         $data['domains'][$name] = ['keys' => $keysMap];
         $this->storage->save($data);
@@ -57,7 +62,7 @@ final class Manager
     {
         $data = $this->storage->load();
 
-        if (!isset($data['domains'][$name])) {
+        if (!$this->hasDomain($name)) {
             throw new DomainNotFoundException(
                 sprintf('Domain "%s" not found', $name),
                 1778152623,
@@ -72,7 +77,7 @@ final class Manager
     {
         $data = $this->storage->load();
 
-        if (!isset($data['domains'][$name])) {
+        if (!$this->hasDomain($name)) {
             throw new DomainNotFoundException(
                 sprintf('Domain "%s" not found', $name),
                 1778152631,
@@ -96,7 +101,7 @@ final class Manager
     {
         $data = $this->storage->load();
 
-        if (!isset($data['domains'][$name])) {
+        if (!$this->hasDomain($name)) {
             throw new DomainNotFoundException(
                 sprintf('Domain "%s" not found', $name),
                 1778152632,
@@ -140,7 +145,10 @@ final class Manager
     public function addPublicKeys(PublicKey ...$publicKeys): void
     {
         $data = $this->storage->load();
-        $newEncoded = array_map(fn(PublicKey $pk) => $pk->getEncoded(), $publicKeys);
+        $newEncoded = array_map(
+            static fn(PublicKey $pk): string => $pk->getEncoded(),
+            $publicKeys
+        );
         $data['autoPublicKeys'] = array_values(array_unique(array_merge($data['autoPublicKeys'], $newEncoded)));
         $this->storage->save($data);
 
@@ -150,7 +158,10 @@ final class Manager
     public function removePublicKeys(PublicKey ...$publicKeys): void
     {
         $data = $this->storage->load();
-        $encodedToRemove = array_map(fn(PublicKey $pk) => $pk->getEncoded(), $publicKeys);
+        $encodedToRemove = array_map(
+            static fn(PublicKey $pk): string => $pk->getEncoded(),
+            $publicKeys
+        );
         $data['autoPublicKeys'] = array_values(array_diff($data['autoPublicKeys'], $encodedToRemove));
         $this->storage->save($data);
 
@@ -172,7 +183,7 @@ final class Manager
     {
         $data = $this->storage->load();
 
-        if (!isset($data['domains'][$domain])) {
+        if (!$this->hasDomain($domain)) {
             throw new DomainNotFoundException(
                 sprintf('Domain "%s" not found', $domain),
                 1778152636,
