@@ -1,0 +1,29 @@
+{
+    "name": "oliver-hader/secrets-kms",
+    "description": "Libsodium-based KMS: seal symmetric data keys per domain for multiple X25519 key holders",
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "php": ">=8.2",
+        "ext-sodium": "*"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^10.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "OliverHader\\SecretsKms\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "OliverHader\\SecretsKms\\Tests\\": "tests/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Oliver Hader",
+            "email": "oliver.hader@typo3.org"
+        }
+    ]
+}

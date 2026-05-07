@@ -1,0 +1,66 @@
+<?php
+
+declare(strict_types=1);
+
+namespace OliverHader\SecretsKms;
+
+use OliverHader\SecretsKms\Exception\RuntimeException;
+
+final class Storage implements StorageInterface
+{
+    public function __construct(private readonly string $filePath)
+    {
+    }
+
+    public function load(): array
+    {
+        if (!file_exists($this->filePath)) {
+            return ['autoPublicKeys' => [], 'domains' => []];
+        }
+
+        $raw = @file_get_contents($this->filePath);
+        if ($raw === false) {
+            throw new RuntimeException(
+                sprintf('Unable to read file "%s"', $this->filePath),
+                1778152628
+            );
+        }
+
+        if (trim($raw) === '') {
+            return ['autoPublicKeys' => [], 'domains' => []];
+        }
+
+        $decoded = json_decode($raw, true);
+        if ($decoded === null) {
+            throw new RuntimeException(
+                    sprintf(
+                    'Invalid JSON in secrets file "%s": %s',
+                    $this->filePath,
+                    json_last_error_msg(),
+                ),
+                1778152629
+            );
+        }
+
+        if (!isset($decoded['autoPublicKeys']) || !is_array($decoded['autoPublicKeys'])) {
+            $decoded['autoPublicKeys'] = [];
+        }
+
+        if (!isset($decoded['domains']) || !is_array($decoded['domains'])) {
+            $decoded['domains'] = [];
+        }
+
+        return $decoded;
+    }
+
+    public function save(array $data): void
+    {
+        $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+        if (@file_put_contents($this->filePath, $json) === false) {
+            throw new RuntimeException(
+                sprintf('Unable to write file "%s"', $this->filePath),
+                1778152630
+            );
+        }
+    }
+}
