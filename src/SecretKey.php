@@ -38,4 +38,9 @@ final class SecretKey
             sodium_crypto_box_publickey_from_secretkey($this->rawBytes),
         );
     }
+
+    public function getFingerprint(): string
+    {
+        return $this->derivePublicKey()->getFingerprint();
+    }
 }

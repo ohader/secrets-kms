@@ -99,6 +99,24 @@ final class KeyPairTest extends TestCase
         self::assertSame($kp->getPublicKeyEncoded(), $derived->getEncoded());
     }
 
+    public function testSecretKeyFingerprintMatchesPublicKeyFingerprint(): void
+    {
+        $kp = KeyPair::generate();
+
+        self::assertSame(
+            $kp->getPublicKey()->getFingerprint(),
+            $kp->getSecretKey()->getFingerprint(),
+        );
+    }
+
+    public function testSecretKeyFingerprintIsDeterministic(): void
+    {
+        $a = KeyPair::fromSeed('fingerprint-secret-test');
+        $b = KeyPair::fromSeed('fingerprint-secret-test');
+
+        self::assertSame($a->getSecretKey()->getFingerprint(), $b->getSecretKey()->getFingerprint());
+    }
+
     // PublicKey
 
     public function testPublicKeyFromRawBytesThrowsOnWrongLength(): void
@@ -127,5 +145,31 @@ final class KeyPairTest extends TestCase
 
         self::assertSame($encoded, $pk->getEncoded());
         self::assertSame($kp->getPublicKey()->getRawBytes(), $pk->getRawBytes());
+    }
+
+    public function testPublicKeyFingerprintIs22CharUrlSafeBase64(): void
+    {
+        $fingerprint = KeyPair::generate()->getPublicKey()->getFingerprint();
+
+        self::assertMatchesRegularExpression('/^[A-Za-z0-9_-]{22}$/', $fingerprint);
+        self::assertStringNotContainsString('=', $fingerprint);
+        self::assertStringNotContainsString('+', $fingerprint);
+        self::assertStringNotContainsString('/', $fingerprint);
+    }
+
+    public function testPublicKeyFingerprintIsDeterministic(): void
+    {
+        $a = KeyPair::fromSeed('fingerprint-test');
+        $b = KeyPair::fromSeed('fingerprint-test');
+
+        self::assertSame($a->getPublicKey()->getFingerprint(), $b->getPublicKey()->getFingerprint());
+    }
+
+    public function testPublicKeyFingerprintDiffersForDifferentKeys(): void
+    {
+        $a = KeyPair::fromSeed('fingerprint-key-a');
+        $b = KeyPair::fromSeed('fingerprint-key-b');
+
+        self::assertNotSame($a->getPublicKey()->getFingerprint(), $b->getPublicKey()->getFingerprint());
     }
 }

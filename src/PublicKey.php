@@ -53,4 +53,12 @@ final class PublicKey
     {
         return sodium_bin2base64($this->rawBytes, SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING);
     }
+
+    public function getFingerprint(): string
+    {
+        return sodium_bin2base64(
+            sodium_crypto_generichash($this->rawBytes, '', 16),
+            SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING,
+        );
+    }
 }
