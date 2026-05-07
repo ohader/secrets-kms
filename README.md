@@ -8,7 +8,7 @@ All cryptography is handled by [libsodium](https://doc.libsodium.org/) (`ext-sod
 
 ## Requirements
 
-- PHP 8.2+
+- PHP 8.1+ (suggested PHP 8.2+)
 - `ext-sodium` (bundled with PHP, enabled by default)
 
 ## Installation
