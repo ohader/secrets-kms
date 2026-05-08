@@ -15,7 +15,7 @@ final class Storage implements StorageInterface
     public function load(): array
     {
         if (!file_exists($this->filePath)) {
-            return ['autoPublicKeys' => [], 'domains' => []];
+            return ['keys' => [], 'domains' => []];
         }
 
         $raw = @file_get_contents($this->filePath);
@@ -27,7 +27,7 @@ final class Storage implements StorageInterface
         }
 
         if (trim($raw) === '') {
-            return ['autoPublicKeys' => [], 'domains' => []];
+            return ['keys' => [], 'domains' => []];
         }
 
         $decoded = json_decode($raw, true);
@@ -42,8 +42,8 @@ final class Storage implements StorageInterface
             );
         }
 
-        if (!isset($decoded['autoPublicKeys']) || !is_array($decoded['autoPublicKeys'])) {
-            $decoded['autoPublicKeys'] = [];
+        if (!isset($decoded['keys']) || !is_array($decoded['keys'])) {
+            $decoded['keys'] = [];
         }
 
         if (!isset($decoded['domains']) || !is_array($decoded['domains'])) {

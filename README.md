@@ -25,7 +25,7 @@ composer require oliver-hader/secrets-kms
 | **Domain** | A named scope (e.g. `typo3/user-settings`). Each domain has one symmetric data key. |
 | **Symmetric data key** | A 32-byte XChaCha20-Poly1305 key used for the actual data encryption in your application. |
 | **Sealed entry** | The symmetric data key encrypted with one system's public key via `sodium_crypto_box_seal`. Only that system's private key can open it. |
-| **Auto public keys** | A persistent list of public keys that are automatically included whenever a new domain is created. Managed via `addPublicKeys` / `removePublicKeys`. |
+| **Key entry** | A `KeyEntry` value object that pairs a public key with an optional `comment` and an `imported` timestamp. The persistent list of entries is stored under `keys` in `secrets.json` and is automatically included whenever a new domain is created. Managed via `addPublicKeys` / `removePublicKeys`. |
 | **Storage** | A `secrets.json` file that holds all sealed entries for all domains. It contains no plaintext key material and is safe to commit to version control. |
 
 ## Quick start
@@ -35,6 +35,7 @@ composer require oliver-hader/secrets-kms
 The most common scenario for TYPO3: derive a key pair from the existing `encryptionKey`. The derivation is deterministic — the same secret always produces the same key pair.
 
 ```php
+use OliverHader\SecretsKms\KeyEntry;
 use OliverHader\SecretsKms\KeyPair;
 use OliverHader\SecretsKms\Manager;
 use OliverHader\SecretsKms\Storage;
@@ -53,13 +54,15 @@ $storage = new Storage('/path/to/secrets.json');
 $prodService = new Manager($prodKeyPair, $storage);
 
 // Register the dev system — extends all existing domains and is remembered for future ones
-$prodService->addPublicKeys($devKeyPair->getPublicKey());
+$prodService->addPublicKeys(
+    new KeyEntry($devKeyPair->getPublicKey(), comment: 'Dev instance'),
+);
 ```
 
 ### 3. Create domains
 
 ```php
-// Both prod and dev get access automatically because dev is in autoPublicKeys
+// Both prod and dev get access automatically because dev is in the `keys` list
 $prodService->createDomain('typo3/user-settings');
 $prodService->createDomain('typo3/registry-data');
 ```
@@ -83,10 +86,10 @@ $stagingKeyPair = KeyPair::fromSeed('staging-encryptionKey');
 
 // Register a new system — extends all existing domains and all future ones
 $prodService->addPublicKeys(
-    $stagingKeyPair->getPublicKey(),
+    new KeyEntry($stagingKeyPair->getPublicKey(), comment: 'Staging instance'),
 );
 
-// Deregister a system — removes it from all existing domains and the auto list
+// Deregister a system — removes it from all existing domains and the keys list
 $prodService->removePublicKeys(
     $devKeyPair->getPublicKey(),
 );
@@ -109,7 +112,7 @@ $prodService->listDomains();
 // ['typo3/user-settings', 'typo3/registry-data']
 
 $prodService->listPublicKeys();
-// ['HlQsvSs1PqVOygDf1G4NXY1WmyokQGGuxv__C9z7tlU']  (dev system's public key)
+// [KeyEntry($devPublicKey, comment: 'Dev instance', imported: ...)]
 ```
 
 ## Full API
@@ -124,7 +127,7 @@ Passing a `string` is equivalent to `KeyPair::fromSeed($string)`.
 
 | Method | Description |
 |--------|-------------|
-| `createDomain(string $name, PublicKey ...$publicKeys): void` | Generates a fresh symmetric data key and seals it for the given public keys, all auto public keys, and the caller's own key. Throws if the domain already exists. |
+| `createDomain(string $name, PublicKey ...$publicKeys): void` | Generates a fresh symmetric data key and seals it for the given public keys, all registered `keys` entries, and the caller's own key. Throws if the domain already exists. |
 | `removeDomain(string $name): void` | Deletes the domain and all its sealed entries. |
 | `extendDomain(string $name, PublicKey ...$publicKeys): void` | Seals the existing data key for additional public keys. The caller must already have access. Skips keys already present. |
 | `reduceDomain(string $name, PublicKey ...$publicKeys): void` | Removes sealed entries for the given public keys. The caller's own key cannot be removed. |
@@ -132,13 +135,13 @@ Passing a `string` is equivalent to `KeyPair::fromSeed($string)`.
 | `reduceAll(PublicKey ...$publicKeys): void` | Calls `reduceDomain` for every registered domain. |
 | `listDomains(): array` | Returns all registered domain names. |
 
-### Auto public key management
+### Key list management
 
 | Method | Description |
 |--------|-------------|
-| `addPublicKeys(PublicKey ...$publicKeys): void` | Persists the keys to the auto list and calls `extendAll` so all existing domains get access too. Idempotent. |
-| `removePublicKeys(PublicKey ...$publicKeys): void` | Removes the keys from the auto list and calls `reduceAll` to revoke access from all existing domains. The caller's own key is silently skipped. |
-| `listPublicKeys(): array` | Returns all keys currently in the auto list. |
+| `addPublicKeys(KeyEntry ...$entries): void` | Persists the entries to the `keys` list and calls `extendAll` so all existing domains get access too. Deduplicates by `publicKeyMultibase`; idempotent for the same key. |
+| `removePublicKeys(PublicKey ...$publicKeys): void` | Removes matching entries from the `keys` list and calls `reduceAll` to revoke access from all existing domains. The caller's own key is silently skipped. |
+| `listPublicKeys(): KeyEntry[]` | Returns all entries currently in the `keys` list. |
 
 ## KeyPair construction
 
@@ -171,14 +174,23 @@ class DatabaseStorage implements StorageInterface
 
 ## What secrets.json looks like
 
-The file has two top-level sections: `autoPublicKeys` (the list of persistently registered systems) and `domains` (one entry per scope, each containing sealed data key entries per system).
+The file has two top-level sections: `keys` (the list of persistently registered systems) and `domains` (one entry per scope, each containing sealed data key entries per system).
+
+Each entry in `keys` is an object with:
+- `publicKeyMultibase` — `z` prefix + URL-safe base64-no-padding encoding of the raw 32-byte X25519 public key
+- `comment` — arbitrary label, may be empty
+- `imported` — UTC ISO 8601 timestamp recording when the entry was added
 
 The map keys inside each domain are URL-safe base64-encoded X25519 public keys (32 bytes); the values are URL-safe base64-encoded sealed ciphertexts (80 bytes: 32-byte ephemeral public key + 16-byte MAC + 32-byte data key).
 
 ```json
 {
-    "autoPublicKeys": [
-        "HlQsvSs1PqVOygDf1G4NXY1WmyokQGGuxv__C9z7tlU"
+    "keys": [
+        {
+            "publicKeyMultibase": "zHlQsvSs1PqVOygDf1G4NXY1WmyokQGGuxv__C9z7tlU",
+            "comment": "Dev instance",
+            "imported": "2024-01-01T01:02:30Z"
+        }
     ],
     "domains": {
         "typo3/user-settings": {
@@ -197,7 +209,7 @@ The map keys inside each domain are URL-safe base64-encoded X25519 public keys (
 ```
 
 In this example:
-- `HlQsvSs1…` is the dev system's public key — in `autoPublicKeys` and registered in `typo3/user-settings`
+- `HlQsvSs1…` is the dev system's public key — in `keys` (as `zHlQsvSs1…`) and registered in `typo3/user-settings`
 - `r61s2kH6…` is the production system's public key — registered in both domains
 - `typo3/registry-data` has only the production key because dev was removed from that domain after creation
 

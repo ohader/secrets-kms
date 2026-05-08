@@ -7,6 +7,7 @@ namespace OliverHader\SecretsKms\Tests;
 use OliverHader\SecretsKms\Exception\DecryptionException;
 use OliverHader\SecretsKms\Exception\DomainNotFoundException;
 use OliverHader\SecretsKms\Exception\RuntimeException;
+use OliverHader\SecretsKms\KeyEntry;
 use OliverHader\SecretsKms\KeyPair;
 use OliverHader\SecretsKms\Manager;
 use OliverHader\SecretsKms\Storage;
@@ -279,10 +280,11 @@ final class ManagerTest extends TestCase
         $managerA->createDomain('typo3/user-settings');
         $managerA->createDomain('typo3/registry-data');
 
-        $managerA->addPublicKeys($keyB->getPublicKey());
+        $managerA->addPublicKeys(new KeyEntry($keyB->getPublicKey()));
 
         $data = $this->storage->load();
-        self::assertSame([$keyB->getPublicKeyEncoded()], $data['autoPublicKeys']);
+        self::assertCount(1, $data['keys']);
+        self::assertSame('z' . $keyB->getPublicKeyEncoded(), $data['keys'][0]['publicKeyMultibase']);
         self::assertArrayHasKey($keyB->getPublicKeyEncoded(), $data['domains']['typo3/user-settings']['keys']);
         self::assertArrayHasKey($keyB->getPublicKeyEncoded(), $data['domains']['typo3/registry-data']['keys']);
     }
@@ -293,11 +295,12 @@ final class ManagerTest extends TestCase
         $keyB = KeyPair::fromSeed('system-b');
         $managerA = new Manager($keyA, $this->storage);
 
-        $managerA->addPublicKeys($keyB->getPublicKey());
-        $managerA->addPublicKeys($keyB->getPublicKey());
+        $managerA->addPublicKeys(new KeyEntry($keyB->getPublicKey()));
+        $managerA->addPublicKeys(new KeyEntry($keyB->getPublicKey()));
 
         $data = $this->storage->load();
-        self::assertSame([$keyB->getPublicKeyEncoded()], $data['autoPublicKeys']);
+        self::assertCount(1, $data['keys']);
+        self::assertSame('z' . $keyB->getPublicKeyEncoded(), $data['keys'][0]['publicKeyMultibase']);
     }
 
     public function testRemovePublicKeysPurgesKeysAndReducesAllDomains(): void
@@ -307,12 +310,12 @@ final class ManagerTest extends TestCase
         $managerA = new Manager($keyA, $this->storage);
 
         $managerA->createDomain('typo3/user-settings');
-        $managerA->addPublicKeys($keyB->getPublicKey());
+        $managerA->addPublicKeys(new KeyEntry($keyB->getPublicKey()));
 
         $managerA->removePublicKeys($keyB->getPublicKey());
 
         $data = $this->storage->load();
-        self::assertSame([], $data['autoPublicKeys']);
+        self::assertSame([], $data['keys']);
         self::assertArrayNotHasKey($keyB->getPublicKeyEncoded(), $data['domains']['typo3/user-settings']['keys']);
     }
 
@@ -322,13 +325,13 @@ final class ManagerTest extends TestCase
         $managerA = new Manager($keyA, $this->storage);
 
         $managerA->createDomain('typo3/user-settings');
-        $managerA->addPublicKeys($keyA->getPublicKey());
+        $managerA->addPublicKeys(new KeyEntry($keyA->getPublicKey()));
 
         // Own key in removePublicKeys must not throw, even though reduceDomain forbids self-removal
         $managerA->removePublicKeys($keyA->getPublicKey());
 
         $data = $this->storage->load();
-        self::assertSame([], $data['autoPublicKeys']);
+        self::assertSame([], $data['keys']);
         // Domain entry for own key must still be intact
         self::assertArrayHasKey($keyA->getPublicKeyEncoded(), $data['domains']['typo3/user-settings']['keys']);
     }
@@ -340,11 +343,14 @@ final class ManagerTest extends TestCase
         $keyC = KeyPair::fromSeed('system-c');
         $managerA = new Manager($keyA, $this->storage);
 
-        $managerA->addPublicKeys($keyB->getPublicKey(), $keyC->getPublicKey());
+        $managerA->addPublicKeys(new KeyEntry($keyB->getPublicKey()), new KeyEntry($keyC->getPublicKey()));
 
+        $result = $managerA->listPublicKeys();
+        self::assertCount(2, $result);
+        $multibaseValues = array_map(fn(KeyEntry $e) => $e->publicKey->getMultibase(), $result);
         self::assertEqualsCanonicalizing(
-            [$keyB->getPublicKeyEncoded(), $keyC->getPublicKeyEncoded()],
-            $managerA->listPublicKeys(),
+            ['z' . $keyB->getPublicKeyEncoded(), 'z' . $keyC->getPublicKeyEncoded()],
+            $multibaseValues,
         );
     }
 
@@ -361,7 +367,7 @@ final class ManagerTest extends TestCase
         $keyB = KeyPair::fromSeed('system-b');
         $managerA = new Manager($keyA, $this->storage);
 
-        $managerA->addPublicKeys($keyB->getPublicKey());
+        $managerA->addPublicKeys(new KeyEntry($keyB->getPublicKey()));
         // Domain created after addPublicKeys — B should get access automatically
         $managerA->createDomain('typo3/user-settings');
 

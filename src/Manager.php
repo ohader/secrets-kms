@@ -7,6 +7,7 @@ namespace OliverHader\SecretsKms;
 use OliverHader\SecretsKms\Exception\DecryptionException;
 use OliverHader\SecretsKms\Exception\DomainNotFoundException;
 use OliverHader\SecretsKms\Exception\RuntimeException;
+use OliverHader\SecretsKms\KeyEntry;
 
 final class Manager
 {
@@ -42,9 +43,9 @@ final class Manager
         foreach ($publicKeys as $pk) {
             $recipients[$pk->getEncoded()] = $pk;
         }
-        // Auto-registered keys are stored as encoded strings; decode them here.
-        foreach ($data['autoPublicKeys'] as $encodedKey) {
-            $recipients[$encodedKey] ??= PublicKey::fromEncoded($encodedKey);
+        foreach ($data['keys'] as $entry) {
+            $pk = KeyEntry::fromArray($entry)->publicKey;
+            $recipients[$pk->getEncoded()] ??= $pk;
         }
         $ownPublicKey = $this->keyPair->getPublicKey();
         $recipients[$ownPublicKey->getEncoded()] ??= $ownPublicKey;
@@ -142,27 +143,34 @@ final class Manager
         return array_keys($this->storage->load()['domains'] ?? []);
     }
 
-    public function addPublicKeys(PublicKey ...$publicKeys): void
+    public function addPublicKeys(KeyEntry ...$entries): void
     {
         $data = $this->storage->load();
-        $newEncoded = array_map(
-            static fn(PublicKey $pk): string => $pk->getEncoded(),
-            $publicKeys
-        );
-        $data['autoPublicKeys'] = array_values(array_unique(array_merge($data['autoPublicKeys'], $newEncoded)));
+        $existing = array_column($data['keys'], null, 'publicKeyMultibase');
+        $newPublicKeys = [];
+        foreach ($entries as $entry) {
+            $mb = $entry->publicKey->getMultibase();
+            if (!isset($existing[$mb])) {
+                $existing[$mb] = $entry->toArray();
+                $newPublicKeys[] = $entry->publicKey;
+            }
+        }
+        $data['keys'] = array_values($existing);
         $this->storage->save($data);
 
-        $this->extendAll(...$publicKeys);
+        $this->extendAll(...$newPublicKeys);
     }
 
     public function removePublicKeys(PublicKey ...$publicKeys): void
     {
         $data = $this->storage->load();
-        $encodedToRemove = array_map(
-            static fn(PublicKey $pk): string => $pk->getEncoded(),
+        $multibasesToRemove = array_map(
+            static fn(PublicKey $pk): string => $pk->getMultibase(),
             $publicKeys
         );
-        $data['autoPublicKeys'] = array_values(array_diff($data['autoPublicKeys'], $encodedToRemove));
+        $data['keys'] = array_values(
+            array_filter($data['keys'], fn(array $e) => !in_array($e['publicKeyMultibase'], $multibasesToRemove, true))
+        );
         $this->storage->save($data);
 
         $ownEncoded = $this->keyPair->getPublicKeyEncoded();
@@ -176,7 +184,10 @@ final class Manager
 
     public function listPublicKeys(): array
     {
-        return $this->storage->load()['autoPublicKeys'];
+        return array_map(
+            static fn(array $e): KeyEntry => KeyEntry::fromArray($e),
+            $this->storage->load()['keys'],
+        );
     }
 
     public function getDataKey(string $domain): string

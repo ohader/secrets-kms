@@ -54,6 +54,11 @@ final class PublicKey
         return sodium_bin2base64($this->rawBytes, SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING);
     }
 
+    public function getMultibase(): string
+    {
+        return 'z' . $this->getEncoded();
+    }
+
     public function getFingerprint(): string
     {
         return sodium_bin2base64(

@@ -40,7 +40,7 @@ final class StorageTest extends TestCase
         $storage = new Storage($this->tempFile . '.nonexistent');
         $loaded = $storage->load();
 
-        self::assertSame(['autoPublicKeys' => [], 'domains' => []], $loaded);
+        self::assertSame(['keys' => [], 'domains' => []], $loaded);
     }
 
     public function testLoadReturnsEmptyStructureForEmptyFile(): void
@@ -48,7 +48,7 @@ final class StorageTest extends TestCase
         file_put_contents($this->tempFile, '');
         $storage = new Storage($this->tempFile);
 
-        self::assertSame(['autoPublicKeys' => [], 'domains' => []], $storage->load());
+        self::assertSame(['keys' => [], 'domains' => []], $storage->load());
     }
 
     public function testLoadReturnsEmptyStructureForWhitespaceOnlyFile(): void
@@ -56,7 +56,7 @@ final class StorageTest extends TestCase
         file_put_contents($this->tempFile, "   \n\t  ");
         $storage = new Storage($this->tempFile);
 
-        self::assertSame(['autoPublicKeys' => [], 'domains' => []], $storage->load());
+        self::assertSame(['keys' => [], 'domains' => []], $storage->load());
     }
 
     public function testLoadThrowsOnInvalidJson(): void
@@ -114,8 +114,8 @@ final class StorageTest extends TestCase
 
         $loaded = $storage->load();
 
-        self::assertArrayHasKey('autoPublicKeys', $loaded);
-        self::assertSame([], $loaded['autoPublicKeys']);
+        self::assertArrayHasKey('keys', $loaded);
+        self::assertSame([], $loaded['keys']);
         self::assertArrayHasKey('domains', $loaded);
         self::assertSame([], $loaded['domains']);
     }
