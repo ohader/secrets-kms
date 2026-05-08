@@ -7,10 +7,10 @@ namespace OliverHader\SecretsKms;
 final class KeyPair
 {
     private function __construct(
-        #[\SensitiveParameter] private readonly SecretKey $secretKey,
+        #[\SensitiveParameter]
+        private readonly SecretKey $secretKey,
         private readonly PublicKey $publicKey,
-    ) {
-    }
+    ) {}
 
     public static function generate(): static
     {

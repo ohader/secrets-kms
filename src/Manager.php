@@ -7,14 +7,14 @@ namespace OliverHader\SecretsKms;
 use OliverHader\SecretsKms\Exception\DecryptionException;
 use OliverHader\SecretsKms\Exception\DomainNotFoundException;
 use OliverHader\SecretsKms\Exception\RuntimeException;
-use OliverHader\SecretsKms\KeyEntry;
 
 final class Manager
 {
     private KeyPair $keyPair;
 
     public function __construct(
-        #[\SensitiveParameter] string|KeyPair $key,
+        #[\SensitiveParameter]
+        string|KeyPair $key,
         private readonly StorageInterface $storage,
     ) {
         $this->keyPair = $key instanceof KeyPair ? $key : KeyPair::fromSeed($key);

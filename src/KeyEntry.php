@@ -10,8 +10,7 @@ final class KeyEntry
         public readonly PublicKey $publicKey,
         public readonly string $comment = '',
         public readonly \DateTimeImmutable $imported = new \DateTimeImmutable('now', new \DateTimeZone('UTC')),
-    ) {
-    }
+    ) {}
 
     public function toArray(): array
     {

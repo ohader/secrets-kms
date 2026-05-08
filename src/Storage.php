@@ -8,9 +8,7 @@ use OliverHader\SecretsKms\Exception\RuntimeException;
 
 final class Storage implements StorageInterface
 {
-    public function __construct(private readonly string $filePath)
-    {
-    }
+    public function __construct(private readonly string $filePath) {}
 
     public function load(): array
     {
@@ -33,7 +31,7 @@ final class Storage implements StorageInterface
         $decoded = json_decode($raw, true);
         if ($decoded === null) {
             throw new RuntimeException(
-                    sprintf(
+                sprintf(
                     'Invalid JSON in secrets file "%s": %s',
                     $this->filePath,
                     json_last_error_msg(),

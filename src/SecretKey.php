@@ -8,9 +8,7 @@ use OliverHader\SecretsKms\Exception\RuntimeException;
 
 final class SecretKey
 {
-    private function __construct(#[\SensitiveParameter] private readonly string $rawBytes)
-    {
-    }
+    private function __construct(#[\SensitiveParameter] private readonly string $rawBytes) {}
 
     public static function fromRawBytes(#[\SensitiveParameter] string $rawBytes): static
     {

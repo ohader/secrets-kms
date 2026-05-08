@@ -4,6 +4,4 @@ declare(strict_types=1);
 
 namespace OliverHader\SecretsKms\Exception;
 
-class DomainNotFoundException extends RuntimeException
-{
-}
+class DomainNotFoundException extends RuntimeException {}

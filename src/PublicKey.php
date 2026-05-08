@@ -8,9 +8,7 @@ use OliverHader\SecretsKms\Exception\RuntimeException;
 
 final class PublicKey
 {
-    private function __construct(private readonly string $rawBytes)
-    {
-    }
+    private function __construct(private readonly string $rawBytes) {}
 
     public static function fromEncoded(string $encoded): static
     {
