@@ -147,11 +147,11 @@ final class KeyPairTest extends TestCase
         self::assertSame($kp->getPublicKey()->getRawBytes(), $pk->getRawBytes());
     }
 
-    public function testPublicKeyFingerprintIs22CharUrlSafeBase64(): void
+    public function testPublicKeyFingerprintIs43CharUrlSafeBase64(): void
     {
         $fingerprint = KeyPair::generate()->getPublicKey()->getFingerprint();
 
-        self::assertMatchesRegularExpression('/^[A-Za-z0-9_-]{22}$/', $fingerprint);
+        self::assertMatchesRegularExpression('/^[A-Za-z0-9_-]{43}$/', $fingerprint);
         self::assertStringNotContainsString('=', $fingerprint);
         self::assertStringNotContainsString('+', $fingerprint);
         self::assertStringNotContainsString('/', $fingerprint);

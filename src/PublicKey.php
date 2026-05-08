@@ -60,7 +60,7 @@ final class PublicKey
     public function getFingerprint(): string
     {
         return sodium_bin2base64(
-            sodium_crypto_generichash($this->rawBytes, '', 16),
+            sodium_crypto_generichash($this->rawBytes, '', SODIUM_CRYPTO_GENERICHASH_BYTES),
             SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING,
         );
     }
