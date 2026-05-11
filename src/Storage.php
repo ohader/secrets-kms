@@ -5,15 +5,18 @@ declare(strict_types=1);
 namespace OliverHader\SecretsKms;
 
 use OliverHader\SecretsKms\Exception\StorageException;
+use OliverHader\SecretsKms\Model\Domain;
+use OliverHader\SecretsKms\Model\KeyEntry;
+use OliverHader\SecretsKms\Model\SecretsData;
 
 final class Storage implements StorageInterface
 {
     public function __construct(private readonly string $filePath) {}
 
-    public function load(): array
+    public function load(): SecretsData
     {
         if (!file_exists($this->filePath)) {
-            return ['keys' => [], 'domains' => []];
+            return new SecretsData();
         }
 
         $raw = @file_get_contents($this->filePath);
@@ -25,7 +28,7 @@ final class Storage implements StorageInterface
         }
 
         if (trim($raw) === '') {
-            return ['keys' => [], 'domains' => []];
+            return new SecretsData();
         }
 
         $decoded = json_decode($raw, true);
@@ -40,20 +43,28 @@ final class Storage implements StorageInterface
             );
         }
 
-        if (!isset($decoded['keys']) || !is_array($decoded['keys'])) {
-            $decoded['keys'] = [];
-        }
+        $keys = is_array($decoded['keys'] ?? null) ? $decoded['keys'] : [];
+        $domains = is_array($decoded['domains'] ?? null) ? $decoded['domains'] : [];
 
-        if (!isset($decoded['domains']) || !is_array($decoded['domains'])) {
-            $decoded['domains'] = [];
-        }
-
-        return $decoded;
+        return new SecretsData(
+            array_map(KeyEntry::fromArray(...), $keys),
+            array_map(
+                fn(array $d): Domain => new Domain($d['keys'] ?? []),
+                $domains,
+            ),
+        );
     }
 
-    public function save(array $data): void
+    public function save(SecretsData $data): void
     {
-        $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+        $raw = [
+            'keys' => array_map(fn(KeyEntry $e): array => $e->toArray(), $data->keys),
+            'domains' => array_map(
+                fn(Domain $d): array => ['keys' => $d->keys],
+                $data->domains,
+            ),
+        ];
+        $json = json_encode($raw, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
         if (@file_put_contents($this->filePath, $json) === false) {
             throw new StorageException(
                 sprintf('Unable to write file "%s"', $this->filePath),

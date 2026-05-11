@@ -4,7 +4,7 @@
 
 PHP library (`oliver-hader/secrets-kms`) that implements a file-backed key management store using libsodium. No runtime Composer dependencies.
 
-- **Namespace**: `OliverHader\SecretsKms` (PSR-4, `src/`)
+- **Namespace**: `OliverHader\SecretsKms` (PSR-4, `src/`); sub-namespaces `Key\` and `Model\` map to `src/Key/` and `src/Model/` automatically via the same PSR-4 root
 - **Tests namespace**: `OliverHader\SecretsKms\Tests` (PSR-4, `tests/`)
 - **PHP**: 8.1+ (`#[\SensitiveParameter]` is silently ignored on 8.1, effective on 8.2+)
 - **Test runner**: `vendor/bin/phpunit --testdox`
@@ -13,14 +13,18 @@ PHP library (`oliver-hader/secrets-kms`) that implements a file-backed key manag
 
 ```
 src/
-  KeyEntry.php           Value object: PublicKey + comment + imported timestamp (for the `keys` list)
-  KeyPair.php            X25519 key pair — generate, derive from seed, import
-  PublicKey.php          Wraps raw 32-byte X25519 public key with base64url / multibase encoding
-  SecretKey.php          Wraps raw 32-byte X25519 secret key; derives public key
-  StorageInterface.php   load(): array / save(array): void
-  Storage.php            File-backed JSON implementation
+  StorageInterface.php   load(): SecretsData / save(SecretsData): void
+  Storage.php            File-backed JSON implementation; deserialises to/from model objects
   Manager.php            All domain and public-key lifecycle operations
   Cipher.php             Symmetric encrypt/decrypt using a domain's data key
+  Key/
+    KeyPair.php          X25519 key pair — generate, derive from seed, import
+    PublicKey.php        Wraps raw 32-byte X25519 public key with base64url / multibase encoding
+    SecretKey.php        Wraps raw 32-byte X25519 secret key; derives public key
+  Model/
+    KeyEntry.php         Value object: PublicKey + comment + imported timestamp (for the `keys` list)
+    Domain.php           Value object: map of encoded public key → base64url sealed data key
+    SecretsData.php      Value object: KeyEntry[] keys + array<string, Domain> domains (storage root)
   Exception/
     Exception.php                  Base library exception (extends \RuntimeException)
     RuntimeException.php           Unused; kept for backwards compatibility (extends Exception)
@@ -63,7 +67,7 @@ src/
 
 `publicKeyMultibase` = `z` prefix + base64url-no-padding encoding of the raw 32-byte public key.
 
-`Storage::load()` always normalises both `keys` and `domains` to `[]` when absent.
+`Storage::load()` always returns a `SecretsData` with empty `keys` and `domains` when the file is absent, empty, or lacks those fields. `Storage::save()` serialises `SecretsData` back to the raw JSON structure.
 
 ### Key design rules
 

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace OliverHader\SecretsKms\Tests;
 
 use OliverHader\SecretsKms\Exception\InvalidKeyMaterialException;
-use OliverHader\SecretsKms\KeyPair;
-use OliverHader\SecretsKms\PublicKey;
-use OliverHader\SecretsKms\SecretKey;
+use OliverHader\SecretsKms\Key\KeyPair;
+use OliverHader\SecretsKms\Key\PublicKey;
+use OliverHader\SecretsKms\Key\SecretKey;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 

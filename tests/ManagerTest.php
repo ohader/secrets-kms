@@ -9,9 +9,11 @@ use OliverHader\SecretsKms\Exception\DomainExistsException;
 use OliverHader\SecretsKms\Exception\DomainNotFoundException;
 use OliverHader\SecretsKms\Exception\InvalidKeyMaterialException;
 use OliverHader\SecretsKms\Exception\SelfLockoutException;
-use OliverHader\SecretsKms\KeyEntry;
-use OliverHader\SecretsKms\KeyPair;
+use OliverHader\SecretsKms\Key\KeyPair;
 use OliverHader\SecretsKms\Manager;
+use OliverHader\SecretsKms\Model\Domain;
+use OliverHader\SecretsKms\Model\KeyEntry;
+use OliverHader\SecretsKms\Model\SecretsData;
 use OliverHader\SecretsKms\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -43,8 +45,8 @@ final class ManagerTest extends TestCase
         $manager->createDomain('typo3/user-settings');
 
         $data = $this->storage->load();
-        self::assertArrayHasKey('typo3/user-settings', $data['domains']);
-        self::assertArrayHasKey($keyA->getPublicKeyEncoded(), $data['domains']['typo3/user-settings']['keys']);
+        self::assertArrayHasKey('typo3/user-settings', $data->domains);
+        self::assertArrayHasKey($keyA->getPublicKeyEncoded(), $data->domains['typo3/user-settings']->keys);
     }
 
     #[Test]
@@ -67,7 +69,7 @@ final class ManagerTest extends TestCase
         $manager->removeDomain('typo3/user-settings');
 
         $data = $this->storage->load();
-        self::assertArrayNotHasKey('typo3/user-settings', $data['domains']);
+        self::assertArrayNotHasKey('typo3/user-settings', $data->domains);
     }
 
     #[Test]
@@ -111,7 +113,7 @@ final class ManagerTest extends TestCase
         $managerA->extendDomain('typo3/user-settings', $keyB->getPublicKey());
 
         $data = $this->storage->load();
-        $keys = $data['domains']['typo3/user-settings']['keys'];
+        $keys = $data->domains['typo3/user-settings']->keys;
 
         self::assertArrayHasKey($keyA->getPublicKeyEncoded(), $keys);
         self::assertArrayHasKey($keyB->getPublicKeyEncoded(), $keys);
@@ -135,8 +137,10 @@ final class ManagerTest extends TestCase
         $manager->createDomain('typo3/user-settings');
 
         $data = $this->storage->load();
-        $data['domains']['typo3/user-settings']['keys'][$keyA->getPublicKeyEncoded()] = '!!!invalid-base64!!!';
-        $this->storage->save($data);
+        $domainKeys = $data->domains['typo3/user-settings']->keys;
+        $domainKeys[$keyA->getPublicKeyEncoded()] = '!!!invalid-base64!!!';
+        $domains = [...$data->domains, 'typo3/user-settings' => new Domain($domainKeys)];
+        $this->storage->save(new SecretsData($data->keys, $domains));
 
         $this->expectException(InvalidKeyMaterialException::class);
         $this->expectExceptionCode(1778512521);
@@ -180,12 +184,12 @@ final class ManagerTest extends TestCase
         $managerA->createDomain('typo3/user-settings', $keyB->getPublicKey());
 
         $dataBefore = $this->storage->load();
-        $sealedBefore = $dataBefore['domains']['typo3/user-settings']['keys'][$keyB->getPublicKeyEncoded()];
+        $sealedBefore = $dataBefore->domains['typo3/user-settings']->keys[$keyB->getPublicKeyEncoded()];
 
         $managerA->extendDomain('typo3/user-settings', $keyB->getPublicKey());
 
         $dataAfter = $this->storage->load();
-        $sealedAfter = $dataAfter['domains']['typo3/user-settings']['keys'][$keyB->getPublicKeyEncoded()];
+        $sealedAfter = $dataAfter->domains['typo3/user-settings']->keys[$keyB->getPublicKeyEncoded()];
 
         self::assertSame($sealedBefore, $sealedAfter);
     }
@@ -201,7 +205,7 @@ final class ManagerTest extends TestCase
         $managerA->reduceDomain('typo3/user-settings', $keyB->getPublicKey());
 
         $data = $this->storage->load();
-        $keys = $data['domains']['typo3/user-settings']['keys'];
+        $keys = $data->domains['typo3/user-settings']->keys;
 
         self::assertArrayNotHasKey($keyB->getPublicKeyEncoded(), $keys);
         self::assertArrayHasKey($keyA->getPublicKeyEncoded(), $keys);
@@ -220,7 +224,7 @@ final class ManagerTest extends TestCase
         $managerA->reduceDomain('typo3/user-settings', $keyB->getPublicKey());
 
         $data = $this->storage->load();
-        self::assertArrayHasKey($keyA->getPublicKeyEncoded(), $data['domains']['typo3/user-settings']['keys']);
+        self::assertArrayHasKey($keyA->getPublicKeyEncoded(), $data->domains['typo3/user-settings']->keys);
     }
 
     #[Test]
@@ -259,8 +263,8 @@ final class ManagerTest extends TestCase
         $managerA->extendAll($keyB->getPublicKey());
 
         $data = $this->storage->load();
-        self::assertArrayHasKey($keyB->getPublicKeyEncoded(), $data['domains']['typo3/user-settings']['keys']);
-        self::assertArrayHasKey($keyB->getPublicKeyEncoded(), $data['domains']['typo3/registry-data']['keys']);
+        self::assertArrayHasKey($keyB->getPublicKeyEncoded(), $data->domains['typo3/user-settings']->keys);
+        self::assertArrayHasKey($keyB->getPublicKeyEncoded(), $data->domains['typo3/registry-data']->keys);
     }
 
     #[Test]
@@ -276,8 +280,8 @@ final class ManagerTest extends TestCase
         $managerA->reduceAll($keyB->getPublicKey());
 
         $data = $this->storage->load();
-        self::assertArrayNotHasKey($keyB->getPublicKeyEncoded(), $data['domains']['typo3/user-settings']['keys']);
-        self::assertArrayNotHasKey($keyB->getPublicKeyEncoded(), $data['domains']['typo3/registry-data']['keys']);
+        self::assertArrayNotHasKey($keyB->getPublicKeyEncoded(), $data->domains['typo3/user-settings']->keys);
+        self::assertArrayNotHasKey($keyB->getPublicKeyEncoded(), $data->domains['typo3/registry-data']->keys);
     }
 
     #[Test]
@@ -290,7 +294,7 @@ final class ManagerTest extends TestCase
         $managerFromString->createDomain('typo3/user-settings');
 
         $data = $this->storage->load();
-        self::assertArrayHasKey($kp->getPublicKeyEncoded(), $data['domains']['typo3/user-settings']['keys']);
+        self::assertArrayHasKey($kp->getPublicKeyEncoded(), $data->domains['typo3/user-settings']->keys);
     }
 
     #[Test]
@@ -303,7 +307,7 @@ final class ManagerTest extends TestCase
         $managerA->createDomain('typo3/user-settings', $keyB->getPublicKey());
 
         $data = $this->storage->load();
-        $keys = $data['domains']['typo3/user-settings']['keys'];
+        $keys = $data->domains['typo3/user-settings']->keys;
 
         self::assertArrayHasKey($keyA->getPublicKeyEncoded(), $keys);
         self::assertArrayHasKey($keyB->getPublicKeyEncoded(), $keys);
@@ -322,10 +326,10 @@ final class ManagerTest extends TestCase
         $managerA->addPublicKeys(new KeyEntry($keyB->getPublicKey()));
 
         $data = $this->storage->load();
-        self::assertCount(1, $data['keys']);
-        self::assertSame('z' . $keyB->getPublicKeyEncoded(), $data['keys'][0]['publicKeyMultibase']);
-        self::assertArrayHasKey($keyB->getPublicKeyEncoded(), $data['domains']['typo3/user-settings']['keys']);
-        self::assertArrayHasKey($keyB->getPublicKeyEncoded(), $data['domains']['typo3/registry-data']['keys']);
+        self::assertCount(1, $data->keys);
+        self::assertSame('z' . $keyB->getPublicKeyEncoded(), $data->keys[0]->publicKey->getMultibase());
+        self::assertArrayHasKey($keyB->getPublicKeyEncoded(), $data->domains['typo3/user-settings']->keys);
+        self::assertArrayHasKey($keyB->getPublicKeyEncoded(), $data->domains['typo3/registry-data']->keys);
     }
 
     #[Test]
@@ -339,8 +343,8 @@ final class ManagerTest extends TestCase
         $managerA->addPublicKeys(new KeyEntry($keyB->getPublicKey()));
 
         $data = $this->storage->load();
-        self::assertCount(1, $data['keys']);
-        self::assertSame('z' . $keyB->getPublicKeyEncoded(), $data['keys'][0]['publicKeyMultibase']);
+        self::assertCount(1, $data->keys);
+        self::assertSame('z' . $keyB->getPublicKeyEncoded(), $data->keys[0]->publicKey->getMultibase());
     }
 
     #[Test]
@@ -356,8 +360,8 @@ final class ManagerTest extends TestCase
         $managerA->removePublicKeys($keyB->getPublicKey());
 
         $data = $this->storage->load();
-        self::assertSame([], $data['keys']);
-        self::assertArrayNotHasKey($keyB->getPublicKeyEncoded(), $data['domains']['typo3/user-settings']['keys']);
+        self::assertSame([], $data->keys);
+        self::assertArrayNotHasKey($keyB->getPublicKeyEncoded(), $data->domains['typo3/user-settings']->keys);
     }
 
     #[Test]
@@ -373,9 +377,9 @@ final class ManagerTest extends TestCase
         $managerA->removePublicKeys($keyA->getPublicKey());
 
         $data = $this->storage->load();
-        self::assertSame([], $data['keys']);
+        self::assertSame([], $data->keys);
         // Domain entry for own key must still be intact
-        self::assertArrayHasKey($keyA->getPublicKeyEncoded(), $data['domains']['typo3/user-settings']['keys']);
+        self::assertArrayHasKey($keyA->getPublicKeyEncoded(), $data->domains['typo3/user-settings']->keys);
     }
 
     #[Test]
@@ -417,7 +421,7 @@ final class ManagerTest extends TestCase
         $managerA->createDomain('typo3/user-settings');
 
         $data = $this->storage->load();
-        $keys = $data['domains']['typo3/user-settings']['keys'];
+        $keys = $data->domains['typo3/user-settings']->keys;
         self::assertArrayHasKey($keyA->getPublicKeyEncoded(), $keys);
         self::assertArrayHasKey($keyB->getPublicKeyEncoded(), $keys);
     }

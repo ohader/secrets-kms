@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace OliverHader\SecretsKms;
 
+use OliverHader\SecretsKms\Model\SecretsData;
+
 interface StorageInterface
 {
-    public function load(): array;
+    public function load(): SecretsData;
 
-    public function save(array $data): void;
+    public function save(SecretsData $data): void;
 }

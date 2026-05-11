@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
-namespace OliverHader\SecretsKms;
+namespace OliverHader\SecretsKms\Model;
+
+use OliverHader\SecretsKms\Key\PublicKey;
 
 final class KeyEntry
 {

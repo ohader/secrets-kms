@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace OliverHader\SecretsKms;
+namespace OliverHader\SecretsKms\Key;
 
 final class KeyPair
 {

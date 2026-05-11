@@ -9,6 +9,11 @@ use OliverHader\SecretsKms\Exception\DomainExistsException;
 use OliverHader\SecretsKms\Exception\DomainNotFoundException;
 use OliverHader\SecretsKms\Exception\InvalidKeyMaterialException;
 use OliverHader\SecretsKms\Exception\SelfLockoutException;
+use OliverHader\SecretsKms\Key\KeyPair;
+use OliverHader\SecretsKms\Key\PublicKey;
+use OliverHader\SecretsKms\Model\Domain;
+use OliverHader\SecretsKms\Model\KeyEntry;
+use OliverHader\SecretsKms\Model\SecretsData;
 
 final class Manager
 {
@@ -24,7 +29,7 @@ final class Manager
 
     public function hasDomain(string $name): bool
     {
-        return isset($this->storage->load()['domains'][$name]);
+        return isset($this->storage->load()->domains[$name]);
     }
 
     public function createDomain(string $name, PublicKey ...$publicKeys): void
@@ -45,8 +50,8 @@ final class Manager
         foreach ($publicKeys as $pk) {
             $recipients[$pk->getEncoded()] = $pk;
         }
-        foreach ($data['keys'] as $entry) {
-            $pk = KeyEntry::fromArray($entry)->publicKey;
+        foreach ($data->keys as $entry) {
+            $pk = $entry->publicKey;
             $recipients[$pk->getEncoded()] ??= $pk;
         }
         $ownPublicKey = $this->keyPair->getPublicKey();
@@ -57,8 +62,8 @@ final class Manager
             $recipients
         );
 
-        $data['domains'][$name] = ['keys' => $keysMap];
-        $this->storage->save($data);
+        $domains = [...$data->domains, $name => new Domain($keysMap)];
+        $this->storage->save(new SecretsData($data->keys, $domains));
     }
 
     public function removeDomain(string $name): void
@@ -72,8 +77,9 @@ final class Manager
             );
         }
 
-        unset($data['domains'][$name]);
-        $this->storage->save($data);
+        $domains = $data->domains;
+        unset($domains[$name]);
+        $this->storage->save(new SecretsData($data->keys, $domains));
     }
 
     public function extendDomain(string $name, PublicKey ...$publicKeys): void
@@ -87,17 +93,18 @@ final class Manager
             );
         }
 
-        $dataKey = $this->unsealDataKey($data['domains'][$name], $this->keyPair->getPublicKeyEncoded());
+        $dataKey = $this->unsealDataKey($data->domains[$name], $this->keyPair->getPublicKeyEncoded());
+        $domainKeys = $data->domains[$name]->keys;
 
         foreach ($publicKeys as $pk) {
             $encodedKey = $pk->getEncoded();
-            if (isset($data['domains'][$name]['keys'][$encodedKey])) {
-                continue;
+            if (!isset($domainKeys[$encodedKey])) {
+                $domainKeys[$encodedKey] = $this->sealDataKey($dataKey, $pk);
             }
-            $data['domains'][$name]['keys'][$encodedKey] = $this->sealDataKey($dataKey, $pk);
         }
 
-        $this->storage->save($data);
+        $domains = [...$data->domains, $name => new Domain($domainKeys)];
+        $this->storage->save(new SecretsData($data->keys, $domains));
     }
 
     public function reduceDomain(string $name, PublicKey ...$publicKeys): void
@@ -112,6 +119,7 @@ final class Manager
         }
 
         $ownEncoded = $this->keyPair->getPublicKeyEncoded();
+        $domainKeys = $data->domains[$name]->keys;
         foreach ($publicKeys as $pk) {
             $encodedKey = $pk->getEncoded();
             if ($encodedKey === $ownEncoded) {
@@ -120,10 +128,11 @@ final class Manager
                     1778152624,
                 );
             }
-            unset($data['domains'][$name]['keys'][$encodedKey]);
+            unset($domainKeys[$encodedKey]);
         }
 
-        $this->storage->save($data);
+        $domains = [...$data->domains, $name => new Domain($domainKeys)];
+        $this->storage->save(new SecretsData($data->keys, $domains));
     }
 
     public function extendAll(PublicKey ...$publicKeys): void
@@ -142,23 +151,25 @@ final class Manager
 
     public function listDomains(): array
     {
-        return array_keys($this->storage->load()['domains'] ?? []);
+        return array_keys($this->storage->load()->domains);
     }
 
     public function addPublicKeys(KeyEntry ...$entries): void
     {
         $data = $this->storage->load();
-        $existing = array_column($data['keys'], null, 'publicKeyMultibase');
+        $existing = [];
+        foreach ($data->keys as $ke) {
+            $existing[$ke->publicKey->getMultibase()] = $ke;
+        }
         $newPublicKeys = [];
         foreach ($entries as $entry) {
             $mb = $entry->publicKey->getMultibase();
             if (!isset($existing[$mb])) {
-                $existing[$mb] = $entry->toArray();
+                $existing[$mb] = $entry;
                 $newPublicKeys[] = $entry->publicKey;
             }
         }
-        $data['keys'] = array_values($existing);
-        $this->storage->save($data);
+        $this->storage->save(new SecretsData(array_values($existing), $data->domains));
 
         $this->extendAll(...$newPublicKeys);
     }
@@ -170,10 +181,10 @@ final class Manager
             static fn(PublicKey $pk): string => $pk->getMultibase(),
             $publicKeys
         );
-        $data['keys'] = array_values(
-            array_filter($data['keys'], fn(array $e) => !in_array($e['publicKeyMultibase'], $multibasesToRemove, true))
+        $keys = array_values(
+            array_filter($data->keys, fn(KeyEntry $e) => !in_array($e->publicKey->getMultibase(), $multibasesToRemove, true))
         );
-        $this->storage->save($data);
+        $this->storage->save(new SecretsData($keys, $data->domains));
 
         $ownEncoded = $this->keyPair->getPublicKeyEncoded();
         $keysToReduce = array_values(
@@ -186,10 +197,7 @@ final class Manager
 
     public function listPublicKeys(): array
     {
-        return array_map(
-            static fn(array $e): KeyEntry => KeyEntry::fromArray($e),
-            $this->storage->load()['keys'],
-        );
+        return $this->storage->load()->keys;
     }
 
     public function getDataKey(string $domain): string
@@ -203,7 +211,7 @@ final class Manager
             );
         }
 
-        return $this->unsealDataKey($data['domains'][$domain], $this->keyPair->getPublicKeyEncoded());
+        return $this->unsealDataKey($data->domains[$domain], $this->keyPair->getPublicKeyEncoded());
     }
 
     private function sealDataKey(string $dataKey, PublicKey $publicKey): string
@@ -214,9 +222,9 @@ final class Manager
         );
     }
 
-    private function unsealDataKey(array $domainData, string $ownPublicKeyEncoded): string
+    private function unsealDataKey(Domain $domain, string $ownPublicKeyEncoded): string
     {
-        $keys = $domainData['keys'] ?? [];
+        $keys = $domain->keys;
 
         if (!isset($keys[$ownPublicKeyEncoded])) {
             throw new DecryptionException(

@@ -8,7 +8,7 @@ use OliverHader\SecretsKms\Cipher;
 use OliverHader\SecretsKms\Exception\DecryptionException;
 use OliverHader\SecretsKms\Exception\DomainNotFoundException;
 use OliverHader\SecretsKms\Exception\InvalidKeyMaterialException;
-use OliverHader\SecretsKms\KeyPair;
+use OliverHader\SecretsKms\Key\KeyPair;
 use OliverHader\SecretsKms\Manager;
 use OliverHader\SecretsKms\Storage;
 use PHPUnit\Framework\Attributes\Test;

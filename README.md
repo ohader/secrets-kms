@@ -35,9 +35,9 @@ composer require oliver-hader/secrets-kms
 The most common scenario for TYPO3: derive a key pair from the existing `encryptionKey`. The derivation is deterministic — the same secret always produces the same key pair.
 
 ```php
-use OliverHader\SecretsKms\KeyEntry;
-use OliverHader\SecretsKms\KeyPair;
+use OliverHader\SecretsKms\Key\KeyPair;
 use OliverHader\SecretsKms\Manager;
+use OliverHader\SecretsKms\Model\KeyEntry;
 use OliverHader\SecretsKms\Storage;
 
 // Each system derives its key pair from its own secret
@@ -164,11 +164,12 @@ Share `$kp->getPublicKeyEncoded()` (a URL-safe base64 string) with other systems
 
 ```php
 use OliverHader\SecretsKms\StorageInterface;
+use OliverHader\SecretsKms\Model\SecretsData;
 
 class DatabaseStorage implements StorageInterface
 {
-    public function load(): array { /* ... */ }
-    public function save(array $data): void { /* ... */ }
+    public function load(): SecretsData { /* ... */ }
+    public function save(SecretsData $data): void { /* ... */ }
 }
 ```
 

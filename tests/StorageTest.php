@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace OliverHader\SecretsKms\Tests;
 
 use OliverHader\SecretsKms\Exception\StorageException;
+use OliverHader\SecretsKms\Model\Domain;
+use OliverHader\SecretsKms\Model\SecretsData;
 use OliverHader\SecretsKms\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -29,12 +31,11 @@ final class StorageTest extends TestCase
     public function saveAndLoadRoundTrip(): void
     {
         $storage = new Storage($this->tempFile);
-        $data = ['domains' => ['typo3/user-settings' => ['keys' => ['abc' => 'xyz']]]];
 
-        $storage->save($data);
+        $storage->save(new SecretsData([], ['typo3/user-settings' => new Domain(['abc' => 'xyz'])]));
         $loaded = $storage->load();
 
-        self::assertSame('xyz', $loaded['domains']['typo3/user-settings']['keys']['abc']);
+        self::assertSame('xyz', $loaded->domains['typo3/user-settings']->keys['abc']);
     }
 
     #[Test]
@@ -43,7 +44,8 @@ final class StorageTest extends TestCase
         $storage = new Storage($this->tempFile . '.nonexistent');
         $loaded = $storage->load();
 
-        self::assertSame(['keys' => [], 'domains' => []], $loaded);
+        self::assertSame([], $loaded->keys);
+        self::assertSame([], $loaded->domains);
     }
 
     #[Test]
@@ -51,8 +53,10 @@ final class StorageTest extends TestCase
     {
         file_put_contents($this->tempFile, '');
         $storage = new Storage($this->tempFile);
+        $loaded = $storage->load();
 
-        self::assertSame(['keys' => [], 'domains' => []], $storage->load());
+        self::assertSame([], $loaded->keys);
+        self::assertSame([], $loaded->domains);
     }
 
     #[Test]
@@ -60,8 +64,10 @@ final class StorageTest extends TestCase
     {
         file_put_contents($this->tempFile, "   \n\t  ");
         $storage = new Storage($this->tempFile);
+        $loaded = $storage->load();
 
-        self::assertSame(['keys' => [], 'domains' => []], $storage->load());
+        self::assertSame([], $loaded->keys);
+        self::assertSame([], $loaded->domains);
     }
 
     #[Test]
@@ -108,7 +114,7 @@ final class StorageTest extends TestCase
             $this->expectException(StorageException::class);
             $this->expectExceptionCode(1778152630);
 
-            $storage->save(['domains' => []]);
+            $storage->save(new SecretsData());
         } finally {
             chmod($readonlyDir, 0755);
             rmdir($readonlyDir);
@@ -123,17 +129,15 @@ final class StorageTest extends TestCase
 
         $loaded = $storage->load();
 
-        self::assertArrayHasKey('keys', $loaded);
-        self::assertSame([], $loaded['keys']);
-        self::assertArrayHasKey('domains', $loaded);
-        self::assertSame([], $loaded['domains']);
+        self::assertSame([], $loaded->keys);
+        self::assertSame([], $loaded->domains);
     }
 
     #[Test]
     public function savedJsonUsesUnescapedSlashes(): void
     {
         $storage = new Storage($this->tempFile);
-        $storage->save(['domains' => ['typo3/user-settings' => ['keys' => []]]]);
+        $storage->save(new SecretsData([], ['typo3/user-settings' => new Domain()]));
 
         $raw = file_get_contents($this->tempFile);
 
