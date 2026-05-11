@@ -8,11 +8,13 @@ use OliverHader\SecretsKms\Exception\InvalidKeyMaterialException;
 use OliverHader\SecretsKms\KeyPair;
 use OliverHader\SecretsKms\PublicKey;
 use OliverHader\SecretsKms\SecretKey;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 final class KeyPairTest extends TestCase
 {
-    public function testGenerateProducesDifferentKeyPairsEachTime(): void
+    #[Test]
+    public function generateProducesDifferentKeyPairsEachTime(): void
     {
         $a = KeyPair::generate();
         $b = KeyPair::generate();
@@ -20,7 +22,8 @@ final class KeyPairTest extends TestCase
         self::assertNotSame($a->getPublicKeyEncoded(), $b->getPublicKeyEncoded());
     }
 
-    public function testFromSeedIsDeterministic(): void
+    #[Test]
+    public function fromSeedIsDeterministic(): void
     {
         $a = KeyPair::fromSeed('test-secret');
         $b = KeyPair::fromSeed('test-secret');
@@ -29,7 +32,8 @@ final class KeyPairTest extends TestCase
         self::assertSame($a->getSodiumKeyPair(), $b->getSodiumKeyPair());
     }
 
-    public function testFromSeedDifferentInputsProduceDifferentKeys(): void
+    #[Test]
+    public function fromSeedDifferentInputsProduceDifferentKeys(): void
     {
         $a = KeyPair::fromSeed('secret-a');
         $b = KeyPair::fromSeed('secret-b');
@@ -37,13 +41,15 @@ final class KeyPairTest extends TestCase
         self::assertNotSame($a->getPublicKeyEncoded(), $b->getPublicKeyEncoded());
     }
 
-    public function testFromSeedHandlesArbitraryLengthInput(): void
+    #[Test]
+    public function fromSeedHandlesArbitraryLengthInput(): void
     {
         self::assertNotEmpty(KeyPair::fromSeed('x')->getPublicKeyEncoded());
         self::assertNotEmpty(KeyPair::fromSeed(str_repeat('a', 200))->getPublicKeyEncoded());
     }
 
-    public function testFromSecretKeyRoundTrip(): void
+    #[Test]
+    public function fromSecretKeyRoundTrip(): void
     {
         $original = KeyPair::generate();
         $restored = KeyPair::fromSecretKey($original->getSecretKey());
@@ -51,14 +57,16 @@ final class KeyPairTest extends TestCase
         self::assertSame($original->getPublicKeyEncoded(), $restored->getPublicKeyEncoded());
     }
 
-    public function testGetSodiumKeyPairHasCorrectLength(): void
+    #[Test]
+    public function getSodiumKeyPairHasCorrectLength(): void
     {
         $kp = KeyPair::generate();
 
         self::assertSame(SODIUM_CRYPTO_BOX_KEYPAIRBYTES, strlen($kp->getSodiumKeyPair()));
     }
 
-    public function testGetPublicKeyEncodedIsUrlSafeBase64WithNoPadding(): void
+    #[Test]
+    public function getPublicKeyEncodedIsUrlSafeBase64WithNoPadding(): void
     {
         $kp = KeyPair::generate();
         $encoded = $kp->getPublicKeyEncoded();
@@ -69,7 +77,8 @@ final class KeyPairTest extends TestCase
         self::assertStringNotContainsString('/', $encoded);
     }
 
-    public function testSealOpenRoundTripValidatesSodiumKeyPairLayout(): void
+    #[Test]
+    public function sealOpenRoundTripValidatesSodiumKeyPairLayout(): void
     {
         $kp = KeyPair::generate();
         $plaintext = 'hello world';
@@ -82,7 +91,8 @@ final class KeyPairTest extends TestCase
 
     // SecretKey
 
-    public function testSecretKeyFromRawBytesThrowsOnWrongLength(): void
+    #[Test]
+    public function secretKeyFromRawBytesThrowsOnWrongLength(): void
     {
         $this->expectException(InvalidKeyMaterialException::class);
         $this->expectExceptionMessageMatches('/Secret key must be \d+ bytes/');
@@ -91,7 +101,8 @@ final class KeyPairTest extends TestCase
         SecretKey::fromRawBytes('tooshort');
     }
 
-    public function testSecretKeyDerivePublicKeyMatchesKeyPair(): void
+    #[Test]
+    public function secretKeyDerivePublicKeyMatchesKeyPair(): void
     {
         $kp = KeyPair::generate();
         $derived = $kp->getSecretKey()->derivePublicKey();
@@ -99,7 +110,8 @@ final class KeyPairTest extends TestCase
         self::assertSame($kp->getPublicKeyEncoded(), $derived->getEncoded());
     }
 
-    public function testSecretKeyFingerprintMatchesPublicKeyFingerprint(): void
+    #[Test]
+    public function secretKeyFingerprintMatchesPublicKeyFingerprint(): void
     {
         $kp = KeyPair::generate();
 
@@ -109,7 +121,8 @@ final class KeyPairTest extends TestCase
         );
     }
 
-    public function testSecretKeyFingerprintIsDeterministic(): void
+    #[Test]
+    public function secretKeyFingerprintIsDeterministic(): void
     {
         $a = KeyPair::fromSeed('fingerprint-secret-test');
         $b = KeyPair::fromSeed('fingerprint-secret-test');
@@ -119,7 +132,8 @@ final class KeyPairTest extends TestCase
 
     // PublicKey
 
-    public function testPublicKeyFromRawBytesThrowsOnWrongLength(): void
+    #[Test]
+    public function publicKeyFromRawBytesThrowsOnWrongLength(): void
     {
         $this->expectException(InvalidKeyMaterialException::class);
         $this->expectExceptionMessageMatches('/Public key must be \d+ bytes/');
@@ -128,7 +142,8 @@ final class KeyPairTest extends TestCase
         PublicKey::fromRawBytes('tooshort');
     }
 
-    public function testPublicKeyFromEncodedThrowsOnInvalidBase64(): void
+    #[Test]
+    public function publicKeyFromEncodedThrowsOnInvalidBase64(): void
     {
         $this->expectException(InvalidKeyMaterialException::class);
         $this->expectExceptionMessageMatches('/Invalid base64 encoding for public key/');
@@ -137,7 +152,8 @@ final class KeyPairTest extends TestCase
         PublicKey::fromEncoded('!!!not-valid-base64!!!');
     }
 
-    public function testPublicKeyFromEncodedThrowsOnInvalidKey(): void
+    #[Test]
+    public function publicKeyFromEncodedThrowsOnInvalidKey(): void
     {
         $this->expectException(InvalidKeyMaterialException::class);
         $this->expectExceptionMessageMatches('/Invalid public key/');
@@ -146,7 +162,8 @@ final class KeyPairTest extends TestCase
         PublicKey::fromEncoded('bm90YXZhbGlka2V5');
     }
 
-    public function testPublicKeyEncodedRoundTrip(): void
+    #[Test]
+    public function publicKeyEncodedRoundTrip(): void
     {
         $kp = KeyPair::generate();
         $encoded = $kp->getPublicKeyEncoded();
@@ -156,7 +173,8 @@ final class KeyPairTest extends TestCase
         self::assertSame($kp->getPublicKey()->getRawBytes(), $pk->getRawBytes());
     }
 
-    public function testPublicKeyFingerprintIs43CharUrlSafeBase64(): void
+    #[Test]
+    public function publicKeyFingerprintIs43CharUrlSafeBase64(): void
     {
         $fingerprint = KeyPair::generate()->getPublicKey()->getFingerprint();
 
@@ -166,7 +184,8 @@ final class KeyPairTest extends TestCase
         self::assertStringNotContainsString('/', $fingerprint);
     }
 
-    public function testPublicKeyFingerprintIsDeterministic(): void
+    #[Test]
+    public function publicKeyFingerprintIsDeterministic(): void
     {
         $a = KeyPair::fromSeed('fingerprint-test');
         $b = KeyPair::fromSeed('fingerprint-test');
@@ -174,7 +193,8 @@ final class KeyPairTest extends TestCase
         self::assertSame($a->getPublicKey()->getFingerprint(), $b->getPublicKey()->getFingerprint());
     }
 
-    public function testPublicKeyFingerprintDiffersForDifferentKeys(): void
+    #[Test]
+    public function publicKeyFingerprintDiffersForDifferentKeys(): void
     {
         $a = KeyPair::fromSeed('fingerprint-key-a');
         $b = KeyPair::fromSeed('fingerprint-key-b');

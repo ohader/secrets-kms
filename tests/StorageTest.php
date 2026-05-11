@@ -6,6 +6,7 @@ namespace OliverHader\SecretsKms\Tests;
 
 use OliverHader\SecretsKms\Exception\StorageException;
 use OliverHader\SecretsKms\Storage;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 final class StorageTest extends TestCase
@@ -24,7 +25,8 @@ final class StorageTest extends TestCase
         }
     }
 
-    public function testSaveAndLoadRoundTrip(): void
+    #[Test]
+    public function saveAndLoadRoundTrip(): void
     {
         $storage = new Storage($this->tempFile);
         $data = ['domains' => ['typo3/user-settings' => ['keys' => ['abc' => 'xyz']]]];
@@ -35,7 +37,8 @@ final class StorageTest extends TestCase
         self::assertSame('xyz', $loaded['domains']['typo3/user-settings']['keys']['abc']);
     }
 
-    public function testLoadReturnsEmptyStructureWhenFileDoesNotExist(): void
+    #[Test]
+    public function loadReturnsEmptyStructureWhenFileDoesNotExist(): void
     {
         $storage = new Storage($this->tempFile . '.nonexistent');
         $loaded = $storage->load();
@@ -43,7 +46,8 @@ final class StorageTest extends TestCase
         self::assertSame(['keys' => [], 'domains' => []], $loaded);
     }
 
-    public function testLoadReturnsEmptyStructureForEmptyFile(): void
+    #[Test]
+    public function loadReturnsEmptyStructureForEmptyFile(): void
     {
         file_put_contents($this->tempFile, '');
         $storage = new Storage($this->tempFile);
@@ -51,7 +55,8 @@ final class StorageTest extends TestCase
         self::assertSame(['keys' => [], 'domains' => []], $storage->load());
     }
 
-    public function testLoadReturnsEmptyStructureForWhitespaceOnlyFile(): void
+    #[Test]
+    public function loadReturnsEmptyStructureForWhitespaceOnlyFile(): void
     {
         file_put_contents($this->tempFile, "   \n\t  ");
         $storage = new Storage($this->tempFile);
@@ -59,7 +64,8 @@ final class StorageTest extends TestCase
         self::assertSame(['keys' => [], 'domains' => []], $storage->load());
     }
 
-    public function testLoadThrowsOnInvalidJson(): void
+    #[Test]
+    public function loadThrowsOnInvalidJson(): void
     {
         file_put_contents($this->tempFile, 'not valid json');
         $storage = new Storage($this->tempFile);
@@ -71,7 +77,8 @@ final class StorageTest extends TestCase
         $storage->load();
     }
 
-    public function testLoadThrowsOnUnreadableFile(): void
+    #[Test]
+    public function loadThrowsOnUnreadableFile(): void
     {
         file_put_contents($this->tempFile, '{}');
         chmod($this->tempFile, 0000);
@@ -89,7 +96,8 @@ final class StorageTest extends TestCase
         $storage->load();
     }
 
-    public function testSaveThrowsOnUnwritableDirectory(): void
+    #[Test]
+    public function saveThrowsOnUnwritableDirectory(): void
     {
         $readonlyDir = sys_get_temp_dir() . '/' . uniqid('secrets_kms_ro_', true);
         mkdir($readonlyDir, 0555);
@@ -107,7 +115,8 @@ final class StorageTest extends TestCase
         }
     }
 
-    public function testLoadNormalizesMissingDomainsKey(): void
+    #[Test]
+    public function loadNormalizesMissingDomainsKey(): void
     {
         file_put_contents($this->tempFile, '{"other": 1}');
         $storage = new Storage($this->tempFile);
@@ -120,7 +129,8 @@ final class StorageTest extends TestCase
         self::assertSame([], $loaded['domains']);
     }
 
-    public function testSavedJsonUsesUnescapedSlashes(): void
+    #[Test]
+    public function savedJsonUsesUnescapedSlashes(): void
     {
         $storage = new Storage($this->tempFile);
         $storage->save(['domains' => ['typo3/user-settings' => ['keys' => []]]]);

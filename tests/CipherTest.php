@@ -11,6 +11,7 @@ use OliverHader\SecretsKms\Exception\InvalidKeyMaterialException;
 use OliverHader\SecretsKms\KeyPair;
 use OliverHader\SecretsKms\Manager;
 use OliverHader\SecretsKms\Storage;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 final class CipherTest extends TestCase
@@ -31,7 +32,8 @@ final class CipherTest extends TestCase
         }
     }
 
-    public function testSealAndUnsealRoundTrip(): void
+    #[Test]
+    public function sealAndUnsealRoundTrip(): void
     {
         $service = new Manager(KeyPair::fromSeed('system-a'), $this->storage);
         $service->createDomain('typo3/user-settings');
@@ -43,7 +45,8 @@ final class CipherTest extends TestCase
         self::assertSame($plaintext, $cipher->unsealWithDomainDataKey('typo3/user-settings', $sealed));
     }
 
-    public function testSealProducesDifferentCiphertextsForSamePlaintext(): void
+    #[Test]
+    public function sealProducesDifferentCiphertextsForSamePlaintext(): void
     {
         $service = new Manager(KeyPair::fromSeed('system-a'), $this->storage);
         $service->createDomain('typo3/user-settings');
@@ -56,7 +59,8 @@ final class CipherTest extends TestCase
         self::assertNotSame($a, $b);
     }
 
-    public function testSealedOutputIsUrlSafeBase64NoPadding(): void
+    #[Test]
+    public function sealedOutputIsUrlSafeBase64NoPadding(): void
     {
         $service = new Manager(KeyPair::fromSeed('system-a'), $this->storage);
         $service->createDomain('typo3/user-settings');
@@ -67,7 +71,8 @@ final class CipherTest extends TestCase
         self::assertStringNotContainsString('=', $sealed);
     }
 
-    public function testUnsealThrowsDecryptionExceptionOnTamperedCiphertext(): void
+    #[Test]
+    public function unsealThrowsDecryptionExceptionOnTamperedCiphertext(): void
     {
         $service = new Manager(KeyPair::fromSeed('system-a'), $this->storage);
         $service->createDomain('typo3/user-settings');
@@ -85,7 +90,8 @@ final class CipherTest extends TestCase
         $cipher->unsealWithDomainDataKey('typo3/user-settings', $tampered);
     }
 
-    public function testUnsealThrowsDecryptionExceptionWhenDomainMismatch(): void
+    #[Test]
+    public function unsealThrowsDecryptionExceptionWhenDomainMismatch(): void
     {
         $service = new Manager(KeyPair::fromSeed('system-a'), $this->storage);
         $service->createDomain('typo3/user-settings');
@@ -100,7 +106,8 @@ final class CipherTest extends TestCase
         $cipher->unsealWithDomainDataKey('typo3/registry-data', $sealed);
     }
 
-    public function testUnsealThrowsInvalidKeyMaterialExceptionOnInvalidBase64(): void
+    #[Test]
+    public function unsealThrowsInvalidKeyMaterialExceptionOnInvalidBase64(): void
     {
         $service = new Manager(KeyPair::fromSeed('system-a'), $this->storage);
         $service->createDomain('typo3/user-settings');
@@ -111,7 +118,8 @@ final class CipherTest extends TestCase
         (new Cipher($service))->unsealWithDomainDataKey('typo3/user-settings', '!!!not-valid-base64!!!');
     }
 
-    public function testUnsealThrowsDecryptionExceptionOnTooShortInput(): void
+    #[Test]
+    public function unsealThrowsDecryptionExceptionOnTooShortInput(): void
     {
         $service = new Manager(KeyPair::fromSeed('system-a'), $this->storage);
         $service->createDomain('typo3/user-settings');
@@ -124,7 +132,8 @@ final class CipherTest extends TestCase
         (new Cipher($service))->unsealWithDomainDataKey('typo3/user-settings', $tooShort);
     }
 
-    public function testSealThrowsDomainNotFoundExceptionOnMissingDomain(): void
+    #[Test]
+    public function sealThrowsDomainNotFoundExceptionOnMissingDomain(): void
     {
         $service = new Manager(KeyPair::fromSeed('system-a'), $this->storage);
 
@@ -133,7 +142,8 @@ final class CipherTest extends TestCase
         (new Cipher($service))->sealWithDomainDataKey('does-not-exist', 'value');
     }
 
-    public function testUnsealThrowsDomainNotFoundExceptionOnMissingDomain(): void
+    #[Test]
+    public function unsealThrowsDomainNotFoundExceptionOnMissingDomain(): void
     {
         $service = new Manager(KeyPair::fromSeed('system-a'), $this->storage);
 
@@ -142,7 +152,8 @@ final class CipherTest extends TestCase
         (new Cipher($service))->unsealWithDomainDataKey('does-not-exist', 'anything');
     }
 
-    public function testMultiSystemBothCanUnsealTheSameCiphertext(): void
+    #[Test]
+    public function multiSystemBothCanUnsealTheSameCiphertext(): void
     {
         $keyA = KeyPair::fromSeed('system-a');
         $keyB = KeyPair::fromSeed('system-b');
@@ -160,7 +171,8 @@ final class CipherTest extends TestCase
         self::assertSame($plaintext, $decrypted);
     }
 
-    public function testSealPreservesEmptyString(): void
+    #[Test]
+    public function sealPreservesEmptyString(): void
     {
         $service = new Manager(KeyPair::fromSeed('system-a'), $this->storage);
         $service->createDomain('typo3/user-settings');
@@ -171,7 +183,8 @@ final class CipherTest extends TestCase
         self::assertSame('', $cipher->unsealWithDomainDataKey('typo3/user-settings', $sealed));
     }
 
-    public function testSealPreservesBinaryData(): void
+    #[Test]
+    public function sealPreservesBinaryData(): void
     {
         $service = new Manager(KeyPair::fromSeed('system-a'), $this->storage);
         $service->createDomain('typo3/user-settings');

@@ -13,6 +13,7 @@ use OliverHader\SecretsKms\KeyEntry;
 use OliverHader\SecretsKms\KeyPair;
 use OliverHader\SecretsKms\Manager;
 use OliverHader\SecretsKms\Storage;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 final class ManagerTest extends TestCase
@@ -33,7 +34,8 @@ final class ManagerTest extends TestCase
         }
     }
 
-    public function testCreateDomainStoresDomainWithCreatorsOwnKey(): void
+    #[Test]
+    public function createDomainStoresDomainWithCreatorsOwnKey(): void
     {
         $keyA = KeyPair::fromSeed('system-a');
         $manager = new Manager($keyA, $this->storage);
@@ -45,7 +47,8 @@ final class ManagerTest extends TestCase
         self::assertArrayHasKey($keyA->getPublicKeyEncoded(), $data['domains']['typo3/user-settings']['keys']);
     }
 
-    public function testCreateDomainThrowsIfAlreadyExists(): void
+    #[Test]
+    public function createDomainThrowsIfAlreadyExists(): void
     {
         $manager = new Manager('system-a', $this->storage);
         $manager->createDomain('typo3/user-settings');
@@ -56,7 +59,8 @@ final class ManagerTest extends TestCase
         $manager->createDomain('typo3/user-settings');
     }
 
-    public function testRemoveDomainDeletesDomain(): void
+    #[Test]
+    public function removeDomainDeletesDomain(): void
     {
         $manager = new Manager('system-a', $this->storage);
         $manager->createDomain('typo3/user-settings');
@@ -66,7 +70,8 @@ final class ManagerTest extends TestCase
         self::assertArrayNotHasKey('typo3/user-settings', $data['domains']);
     }
 
-    public function testRemoveDomainThrowsOnMissingDomain(): void
+    #[Test]
+    public function removeDomainThrowsOnMissingDomain(): void
     {
         $manager = new Manager('system-a', $this->storage);
 
@@ -75,7 +80,8 @@ final class ManagerTest extends TestCase
         $manager->removeDomain('does-not-exist');
     }
 
-    public function testListDomainsReturnsAllCreatedDomains(): void
+    #[Test]
+    public function listDomainsReturnsAllCreatedDomains(): void
     {
         $manager = new Manager('system-a', $this->storage);
         $manager->createDomain('typo3/user-settings');
@@ -86,14 +92,16 @@ final class ManagerTest extends TestCase
         self::assertEqualsCanonicalizing(['typo3/user-settings', 'typo3/registry-data'], $domains);
     }
 
-    public function testListDomainsReturnsEmptyArrayWhenNoneExist(): void
+    #[Test]
+    public function listDomainsReturnsEmptyArrayWhenNoneExist(): void
     {
         $manager = new Manager('system-a', $this->storage);
 
         self::assertSame([], $manager->listDomains());
     }
 
-    public function testMultiSystemScenarioBothSystemsCanUnsealTheSameDataKey(): void
+    #[Test]
+    public function multiSystemScenarioBothSystemsCanUnsealTheSameDataKey(): void
     {
         $keyA = KeyPair::fromSeed('production-secret');
         $keyB = KeyPair::fromSeed('dev-secret');
@@ -119,7 +127,8 @@ final class ManagerTest extends TestCase
         self::assertSame($dataKeyFromA, $dataKeyFromB, 'Both systems must recover the same underlying data key');
     }
 
-    public function testExtendDomainThrowsDecryptionExceptionOnCorruptedSealedDataKey(): void
+    #[Test]
+    public function extendDomainThrowsDecryptionExceptionOnCorruptedSealedDataKey(): void
     {
         $keyA = KeyPair::fromSeed('system-a');
         $manager = new Manager($keyA, $this->storage);
@@ -135,7 +144,8 @@ final class ManagerTest extends TestCase
         $manager->extendDomain('typo3/user-settings');
     }
 
-    public function testExtendDomainThrowsDecryptionExceptionWhenCallerNotMember(): void
+    #[Test]
+    public function extendDomainThrowsDecryptionExceptionWhenCallerNotMember(): void
     {
         $keyA = KeyPair::fromSeed('system-a');
         $keyC = KeyPair::fromSeed('system-c');
@@ -150,7 +160,8 @@ final class ManagerTest extends TestCase
         $managerC->extendDomain('typo3/user-settings');
     }
 
-    public function testExtendDomainThrowsOnMissingDomain(): void
+    #[Test]
+    public function extendDomainThrowsOnMissingDomain(): void
     {
         $manager = new Manager('system-a', $this->storage);
 
@@ -159,7 +170,8 @@ final class ManagerTest extends TestCase
         $manager->extendDomain('does-not-exist');
     }
 
-    public function testExtendDomainIsIdempotentForAlreadyPresentKeys(): void
+    #[Test]
+    public function extendDomainIsIdempotentForAlreadyPresentKeys(): void
     {
         $keyA = KeyPair::fromSeed('system-a');
         $keyB = KeyPair::fromSeed('system-b');
@@ -178,7 +190,8 @@ final class ManagerTest extends TestCase
         self::assertSame($sealedBefore, $sealedAfter);
     }
 
-    public function testReduceDomainRemovesTargetKeyLeavesCallerIntact(): void
+    #[Test]
+    public function reduceDomainRemovesTargetKeyLeavesCallerIntact(): void
     {
         $keyA = KeyPair::fromSeed('system-a');
         $keyB = KeyPair::fromSeed('system-b');
@@ -194,7 +207,8 @@ final class ManagerTest extends TestCase
         self::assertArrayHasKey($keyA->getPublicKeyEncoded(), $keys);
     }
 
-    public function testReduceDomainIsIdempotentForAbsentKeys(): void
+    #[Test]
+    public function reduceDomainIsIdempotentForAbsentKeys(): void
     {
         $keyA = KeyPair::fromSeed('system-a');
         $keyB = KeyPair::fromSeed('system-b');
@@ -209,7 +223,8 @@ final class ManagerTest extends TestCase
         self::assertArrayHasKey($keyA->getPublicKeyEncoded(), $data['domains']['typo3/user-settings']['keys']);
     }
 
-    public function testReduceDomainThrowsOnSelfRemoval(): void
+    #[Test]
+    public function reduceDomainThrowsOnSelfRemoval(): void
     {
         $keyA = KeyPair::fromSeed('system-a');
         $managerA = new Manager($keyA, $this->storage);
@@ -221,7 +236,8 @@ final class ManagerTest extends TestCase
         $managerA->reduceDomain('typo3/user-settings', $keyA->getPublicKey());
     }
 
-    public function testReduceDomainThrowsOnMissingDomain(): void
+    #[Test]
+    public function reduceDomainThrowsOnMissingDomain(): void
     {
         $manager = new Manager('system-a', $this->storage);
 
@@ -230,7 +246,8 @@ final class ManagerTest extends TestCase
         $manager->reduceDomain('does-not-exist');
     }
 
-    public function testExtendAllAppliesAcrossAllDomains(): void
+    #[Test]
+    public function extendAllAppliesAcrossAllDomains(): void
     {
         $keyA = KeyPair::fromSeed('system-a');
         $keyB = KeyPair::fromSeed('system-b');
@@ -246,7 +263,8 @@ final class ManagerTest extends TestCase
         self::assertArrayHasKey($keyB->getPublicKeyEncoded(), $data['domains']['typo3/registry-data']['keys']);
     }
 
-    public function testReduceAllAppliesAcrossAllDomains(): void
+    #[Test]
+    public function reduceAllAppliesAcrossAllDomains(): void
     {
         $keyA = KeyPair::fromSeed('system-a');
         $keyB = KeyPair::fromSeed('system-b');
@@ -262,7 +280,8 @@ final class ManagerTest extends TestCase
         self::assertArrayNotHasKey($keyB->getPublicKeyEncoded(), $data['domains']['typo3/registry-data']['keys']);
     }
 
-    public function testManagerFromStringAndFromKeyPairAreEquivalent(): void
+    #[Test]
+    public function managerFromStringAndFromKeyPairAreEquivalent(): void
     {
         $seed = 'my-secret';
         $kp = KeyPair::fromSeed($seed);
@@ -274,7 +293,8 @@ final class ManagerTest extends TestCase
         self::assertArrayHasKey($kp->getPublicKeyEncoded(), $data['domains']['typo3/user-settings']['keys']);
     }
 
-    public function testCreateDomainAcceptsExplicitPublicKeys(): void
+    #[Test]
+    public function createDomainAcceptsExplicitPublicKeys(): void
     {
         $keyA = KeyPair::fromSeed('system-a');
         $keyB = KeyPair::fromSeed('system-b');
@@ -289,7 +309,8 @@ final class ManagerTest extends TestCase
         self::assertArrayHasKey($keyB->getPublicKeyEncoded(), $keys);
     }
 
-    public function testAddPublicKeysPersistsKeysAndExtendsAllDomains(): void
+    #[Test]
+    public function addPublicKeysPersistsKeysAndExtendsAllDomains(): void
     {
         $keyA = KeyPair::fromSeed('system-a');
         $keyB = KeyPair::fromSeed('system-b');
@@ -307,7 +328,8 @@ final class ManagerTest extends TestCase
         self::assertArrayHasKey($keyB->getPublicKeyEncoded(), $data['domains']['typo3/registry-data']['keys']);
     }
 
-    public function testAddPublicKeysIsIdempotent(): void
+    #[Test]
+    public function addPublicKeysIsIdempotent(): void
     {
         $keyA = KeyPair::fromSeed('system-a');
         $keyB = KeyPair::fromSeed('system-b');
@@ -321,7 +343,8 @@ final class ManagerTest extends TestCase
         self::assertSame('z' . $keyB->getPublicKeyEncoded(), $data['keys'][0]['publicKeyMultibase']);
     }
 
-    public function testRemovePublicKeysPurgesKeysAndReducesAllDomains(): void
+    #[Test]
+    public function removePublicKeysPurgesKeysAndReducesAllDomains(): void
     {
         $keyA = KeyPair::fromSeed('system-a');
         $keyB = KeyPair::fromSeed('system-b');
@@ -337,7 +360,8 @@ final class ManagerTest extends TestCase
         self::assertArrayNotHasKey($keyB->getPublicKeyEncoded(), $data['domains']['typo3/user-settings']['keys']);
     }
 
-    public function testRemovePublicKeysSilentlySkipsOwnKey(): void
+    #[Test]
+    public function removePublicKeysSilentlySkipsOwnKey(): void
     {
         $keyA = KeyPair::fromSeed('system-a');
         $managerA = new Manager($keyA, $this->storage);
@@ -354,7 +378,8 @@ final class ManagerTest extends TestCase
         self::assertArrayHasKey($keyA->getPublicKeyEncoded(), $data['domains']['typo3/user-settings']['keys']);
     }
 
-    public function testListPublicKeysReturnsRegisteredKeys(): void
+    #[Test]
+    public function listPublicKeysReturnsRegisteredKeys(): void
     {
         $keyA = KeyPair::fromSeed('system-a');
         $keyB = KeyPair::fromSeed('system-b');
@@ -372,14 +397,16 @@ final class ManagerTest extends TestCase
         );
     }
 
-    public function testListPublicKeysReturnsEmptyArrayInitially(): void
+    #[Test]
+    public function listPublicKeysReturnsEmptyArrayInitially(): void
     {
         $manager = new Manager('system-a', $this->storage);
 
         self::assertSame([], $manager->listPublicKeys());
     }
 
-    public function testCreateDomainIncludesAutoPublicKeys(): void
+    #[Test]
+    public function createDomainIncludesAutoPublicKeys(): void
     {
         $keyA = KeyPair::fromSeed('system-a');
         $keyB = KeyPair::fromSeed('system-b');
