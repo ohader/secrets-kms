@@ -7,6 +7,7 @@ namespace OliverHader\SecretsKms\Tests;
 use OliverHader\SecretsKms\Cipher;
 use OliverHader\SecretsKms\Exception\DecryptionException;
 use OliverHader\SecretsKms\Exception\DomainNotFoundException;
+use OliverHader\SecretsKms\Exception\InvalidKeyMaterialException;
 use OliverHader\SecretsKms\KeyPair;
 use OliverHader\SecretsKms\Manager;
 use OliverHader\SecretsKms\Storage;
@@ -97,6 +98,17 @@ final class CipherTest extends TestCase
         $this->expectException(DecryptionException::class);
 
         $cipher->unsealWithDomainDataKey('typo3/registry-data', $sealed);
+    }
+
+    public function testUnsealThrowsInvalidKeyMaterialExceptionOnInvalidBase64(): void
+    {
+        $service = new Manager(KeyPair::fromSeed('system-a'), $this->storage);
+        $service->createDomain('typo3/user-settings');
+
+        $this->expectException(InvalidKeyMaterialException::class);
+        $this->expectExceptionCode(1778152637);
+
+        (new Cipher($service))->unsealWithDomainDataKey('typo3/user-settings', '!!!not-valid-base64!!!');
     }
 
     public function testUnsealThrowsDecryptionExceptionOnTooShortInput(): void

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace OliverHader\SecretsKms\Tests;
 
-use OliverHader\SecretsKms\Exception\RuntimeException;
+use OliverHader\SecretsKms\Exception\InvalidKeyMaterialException;
 use OliverHader\SecretsKms\KeyPair;
 use OliverHader\SecretsKms\PublicKey;
 use OliverHader\SecretsKms\SecretKey;
@@ -84,7 +84,7 @@ final class KeyPairTest extends TestCase
 
     public function testSecretKeyFromRawBytesThrowsOnWrongLength(): void
     {
-        $this->expectException(RuntimeException::class);
+        $this->expectException(InvalidKeyMaterialException::class);
         $this->expectExceptionMessageMatches('/Secret key must be \d+ bytes/');
         $this->expectExceptionCode(1778152621);
 
@@ -121,16 +121,25 @@ final class KeyPairTest extends TestCase
 
     public function testPublicKeyFromRawBytesThrowsOnWrongLength(): void
     {
-        $this->expectException(RuntimeException::class);
+        $this->expectException(InvalidKeyMaterialException::class);
         $this->expectExceptionMessageMatches('/Public key must be \d+ bytes/');
         $this->expectExceptionCode(1778152633);
 
         PublicKey::fromRawBytes('tooshort');
     }
 
+    public function testPublicKeyFromEncodedThrowsOnInvalidBase64(): void
+    {
+        $this->expectException(InvalidKeyMaterialException::class);
+        $this->expectExceptionMessageMatches('/Invalid base64 encoding for public key/');
+        $this->expectExceptionCode(1778512522);
+
+        PublicKey::fromEncoded('!!!not-valid-base64!!!');
+    }
+
     public function testPublicKeyFromEncodedThrowsOnInvalidKey(): void
     {
-        $this->expectException(RuntimeException::class);
+        $this->expectException(InvalidKeyMaterialException::class);
         $this->expectExceptionMessageMatches('/Invalid public key/');
         $this->expectExceptionCode(1778152625);
 

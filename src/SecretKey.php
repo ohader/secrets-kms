@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace OliverHader\SecretsKms;
 
-use OliverHader\SecretsKms\Exception\RuntimeException;
+use OliverHader\SecretsKms\Exception\InvalidKeyMaterialException;
 
 final class SecretKey
 {
@@ -13,7 +13,7 @@ final class SecretKey
     public static function fromRawBytes(#[\SensitiveParameter] string $rawBytes): static
     {
         if (strlen($rawBytes) !== SODIUM_CRYPTO_BOX_SECRETKEYBYTES) {
-            throw new RuntimeException(
+            throw new InvalidKeyMaterialException(
                 sprintf(
                     'Secret key must be %d bytes, got %d',
                     SODIUM_CRYPTO_BOX_SECRETKEYBYTES,

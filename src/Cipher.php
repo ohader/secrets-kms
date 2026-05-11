@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OliverHader\SecretsKms;
 
 use OliverHader\SecretsKms\Exception\DecryptionException;
+use OliverHader\SecretsKms\Exception\InvalidKeyMaterialException;
 
 final class Cipher
 {
@@ -33,7 +34,7 @@ final class Cipher
         try {
             $raw = sodium_base642bin($sealed, SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING);
         } catch (\SodiumException $e) {
-            throw new DecryptionException('Invalid sealed value encoding', 1778152637, $e);
+            throw new InvalidKeyMaterialException('Invalid sealed value encoding', 1778152637, $e);
         }
 
         $nonceLen = SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_NPUBBYTES;

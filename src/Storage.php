@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace OliverHader\SecretsKms;
 
-use OliverHader\SecretsKms\Exception\RuntimeException;
+use OliverHader\SecretsKms\Exception\StorageException;
 
 final class Storage implements StorageInterface
 {
@@ -18,7 +18,7 @@ final class Storage implements StorageInterface
 
         $raw = @file_get_contents($this->filePath);
         if ($raw === false) {
-            throw new RuntimeException(
+            throw new StorageException(
                 sprintf('Unable to read file "%s"', $this->filePath),
                 1778152628
             );
@@ -30,7 +30,7 @@ final class Storage implements StorageInterface
 
         $decoded = json_decode($raw, true);
         if ($decoded === null) {
-            throw new RuntimeException(
+            throw new StorageException(
                 sprintf(
                     'Invalid JSON in secrets file "%s": %s',
                     $this->filePath,
@@ -55,7 +55,7 @@ final class Storage implements StorageInterface
     {
         $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
         if (@file_put_contents($this->filePath, $json) === false) {
-            throw new RuntimeException(
+            throw new StorageException(
                 sprintf('Unable to write file "%s"', $this->filePath),
                 1778152630
             );

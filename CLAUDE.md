@@ -22,9 +22,14 @@ src/
   Manager.php            All domain and public-key lifecycle operations
   Cipher.php             Symmetric encrypt/decrypt using a domain's data key
   Exception/
-    RuntimeException.php       Base library exception
-    DomainNotFoundException.php
-    DecryptionException.php
+    Exception.php                  Base library exception (extends \RuntimeException)
+    RuntimeException.php           Unused; kept for backwards compatibility (extends Exception)
+    DomainNotFoundException.php    (extends Exception)
+    DomainExistsException.php      (extends Exception)
+    SelfLockoutException.php       (extends Exception)
+    StorageException.php           File I/O and JSON parse errors (extends Exception)
+    DecryptionException.php        (extends Exception)
+    InvalidKeyMaterialException.php  Malformed key/cipher material (extends Exception)
 ```
 
 ### Crypto primitives (all libsodium, no external packages)
@@ -73,22 +78,25 @@ src/
 
 | Code | Exception | Thrown by |
 |------|-----------|-----------|
-| 1778152622 | `RuntimeException` | `createDomain` — domain already exists |
+| 1778152621 | `InvalidKeyMaterialException` | `SecretKey::fromRawBytes` — wrong byte length |
+| 1778152622 | `DomainExistsException` | `createDomain` — domain already exists |
 | 1778152623 | `DomainNotFoundException` | `removeDomain` |
-| 1778152624 | `RuntimeException` | `reduceDomain` — self-removal attempt |
-| 1778152625 | `RuntimeException` | `resolvePublicKeyBytes` — wrong decoded length |
+| 1778152624 | `SelfLockoutException` | `reduceDomain` — self-removal attempt |
+| 1778152625 | `InvalidKeyMaterialException` | `PublicKey::fromEncoded` — wrong decoded length |
 | 1778152626 | `DecryptionException` | `unsealDataKey` — own key not in domain |
 | 1778152627 | `DecryptionException` | `unsealDataKey` — `seal_open` returned false |
-| 1778152628 | `RuntimeException` | `Storage::load` — file unreadable |
-| 1778152629 | `RuntimeException` | `Storage::load` — invalid JSON |
-| 1778152630 | `RuntimeException` | `Storage::save` — file not writable |
+| 1778152628 | `StorageException` | `Storage::load` — file unreadable |
+| 1778152629 | `StorageException` | `Storage::load` — invalid JSON |
+| 1778152630 | `StorageException` | `Storage::save` — file not writable |
 | 1778152631 | `DomainNotFoundException` | `extendDomain` |
 | 1778152632 | `DomainNotFoundException` | `reduceDomain` |
-| 1778152633 | `RuntimeException` | `PublicKey::fromRawBytes` — wrong byte length |
+| 1778152633 | `InvalidKeyMaterialException` | `PublicKey::fromRawBytes` — wrong byte length |
 | 1778152634 | `DecryptionException` | `Cipher::unsealWithDomainDataKey` — input too short (no room for nonce) |
 | 1778152635 | `DecryptionException` | `Cipher::unsealWithDomainDataKey` — AEAD decryption failed |
-| 1778152636 | `DomainNotFoundException` | `Service::getDataKey` |
-| 1778152637 | `DecryptionException` | `Cipher::unsealWithDomainDataKey` — invalid base64 encoding |
+| 1778152636 | `DomainNotFoundException` | `Manager::getDataKey` |
+| 1778152637 | `InvalidKeyMaterialException` | `Cipher::unsealWithDomainDataKey` — invalid base64 encoding |
+| 1778512521 | `InvalidKeyMaterialException` | `unsealDataKey` — invalid base64 in sealed data key |
+| 1778512522 | `InvalidKeyMaterialException` | `PublicKey::fromEncoded` — invalid base64 encoding |
 
 ## Coding conventions
 
@@ -106,4 +114,4 @@ composer install
 vendor/bin/phpunit --testdox
 ```
 
-All 63 tests must pass with no warnings. Two tests (`testLoadThrowsOnUnreadableFile`, `testSaveThrowsOnUnwritableDirectory`) use `chmod` and skip themselves when running as root.
+All 66 tests must pass with no warnings. Two tests (`testLoadThrowsOnUnreadableFile`, `testSaveThrowsOnUnwritableDirectory`) use `chmod` and skip themselves when running as root.

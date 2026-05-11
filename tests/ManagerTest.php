@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace OliverHader\SecretsKms\Tests;
 
 use OliverHader\SecretsKms\Exception\DecryptionException;
+use OliverHader\SecretsKms\Exception\DomainExistsException;
 use OliverHader\SecretsKms\Exception\DomainNotFoundException;
-use OliverHader\SecretsKms\Exception\RuntimeException;
+use OliverHader\SecretsKms\Exception\InvalidKeyMaterialException;
+use OliverHader\SecretsKms\Exception\SelfLockoutException;
 use OliverHader\SecretsKms\KeyEntry;
 use OliverHader\SecretsKms\KeyPair;
 use OliverHader\SecretsKms\Manager;
@@ -48,7 +50,7 @@ final class ManagerTest extends TestCase
         $manager = new Manager('system-a', $this->storage);
         $manager->createDomain('typo3/user-settings');
 
-        $this->expectException(RuntimeException::class);
+        $this->expectException(DomainExistsException::class);
         $this->expectExceptionMessageMatches('/already exists/');
 
         $manager->createDomain('typo3/user-settings');
@@ -115,6 +117,22 @@ final class ManagerTest extends TestCase
         self::assertNotFalse($dataKeyFromB, 'System B could not unseal its data key');
 
         self::assertSame($dataKeyFromA, $dataKeyFromB, 'Both systems must recover the same underlying data key');
+    }
+
+    public function testExtendDomainThrowsDecryptionExceptionOnCorruptedSealedDataKey(): void
+    {
+        $keyA = KeyPair::fromSeed('system-a');
+        $manager = new Manager($keyA, $this->storage);
+        $manager->createDomain('typo3/user-settings');
+
+        $data = $this->storage->load();
+        $data['domains']['typo3/user-settings']['keys'][$keyA->getPublicKeyEncoded()] = '!!!invalid-base64!!!';
+        $this->storage->save($data);
+
+        $this->expectException(InvalidKeyMaterialException::class);
+        $this->expectExceptionCode(1778512521);
+
+        $manager->extendDomain('typo3/user-settings');
     }
 
     public function testExtendDomainThrowsDecryptionExceptionWhenCallerNotMember(): void
@@ -197,7 +215,7 @@ final class ManagerTest extends TestCase
         $managerA = new Manager($keyA, $this->storage);
         $managerA->createDomain('typo3/user-settings');
 
-        $this->expectException(RuntimeException::class);
+        $this->expectException(SelfLockoutException::class);
         $this->expectExceptionMessageMatches('/own public key/');
 
         $managerA->reduceDomain('typo3/user-settings', $keyA->getPublicKey());

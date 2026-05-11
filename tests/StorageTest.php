@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace OliverHader\SecretsKms\Tests;
 
-use OliverHader\SecretsKms\Exception\RuntimeException;
+use OliverHader\SecretsKms\Exception\StorageException;
 use OliverHader\SecretsKms\Storage;
 use PHPUnit\Framework\TestCase;
 
@@ -64,7 +64,7 @@ final class StorageTest extends TestCase
         file_put_contents($this->tempFile, 'not valid json');
         $storage = new Storage($this->tempFile);
 
-        $this->expectException(RuntimeException::class);
+        $this->expectException(StorageException::class);
         $this->expectExceptionMessageMatches('/Invalid JSON/');
         $this->expectExceptionCode(1778152629);
 
@@ -83,7 +83,7 @@ final class StorageTest extends TestCase
 
         $storage = new Storage($this->tempFile);
 
-        $this->expectException(RuntimeException::class);
+        $this->expectException(StorageException::class);
         $this->expectExceptionCode(1778152628);
 
         $storage->load();
@@ -97,7 +97,7 @@ final class StorageTest extends TestCase
         $storage = new Storage($readonlyDir . '/secrets.json');
 
         try {
-            $this->expectException(RuntimeException::class);
+            $this->expectException(StorageException::class);
             $this->expectExceptionCode(1778152630);
 
             $storage->save(['domains' => []]);

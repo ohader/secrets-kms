@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace OliverHader\SecretsKms;
 
 use OliverHader\SecretsKms\Exception\DecryptionException;
+use OliverHader\SecretsKms\Exception\DomainExistsException;
 use OliverHader\SecretsKms\Exception\DomainNotFoundException;
-use OliverHader\SecretsKms\Exception\RuntimeException;
+use OliverHader\SecretsKms\Exception\InvalidKeyMaterialException;
+use OliverHader\SecretsKms\Exception\SelfLockoutException;
 
 final class Manager
 {
@@ -30,7 +32,7 @@ final class Manager
         $data = $this->storage->load();
 
         if ($this->hasDomain($name)) {
-            throw new RuntimeException(
+            throw new DomainExistsException(
                 sprintf('Domain "%s" already exists', $name),
                 1778152622,
             );
@@ -113,7 +115,7 @@ final class Manager
         foreach ($publicKeys as $pk) {
             $encodedKey = $pk->getEncoded();
             if ($encodedKey === $ownEncoded) {
-                throw new RuntimeException(
+                throw new SelfLockoutException(
                     'Cannot remove own public key from domain',
                     1778152624,
                 );
@@ -223,7 +225,15 @@ final class Manager
             );
         }
 
-        $ciphertext = sodium_base642bin($keys[$ownPublicKeyEncoded], SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING);
+        try {
+            $ciphertext = sodium_base642bin($keys[$ownPublicKeyEncoded], SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING);
+        } catch (\SodiumException $e) {
+            throw new InvalidKeyMaterialException(
+                sprintf('Invalid base64 encoding in sealed data key for public key "%s"', $ownPublicKeyEncoded),
+                1778512521,
+                $e,
+            );
+        }
         $dataKey = sodium_crypto_box_seal_open($ciphertext, $this->keyPair->getSodiumKeyPair());
 
         if ($dataKey === false) {
