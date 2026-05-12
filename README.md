@@ -19,14 +19,16 @@ composer require oliver-hader/secrets-kms
 
 ## Core concepts
 
-| Term | Meaning |
-|------|---------|
-| **KeyPair** | An X25519 asymmetric key pair. Can be generated randomly, derived deterministically from a password/secret, or imported from a raw secret key. |
-| **Domain** | A named scope (e.g. `typo3/user-settings`). Each domain has one symmetric data key. |
-| **Symmetric data key** | A 32-byte XChaCha20-Poly1305 key used for the actual data encryption in your application. |
-| **Sealed entry** | The symmetric data key encrypted with one system's public key via `sodium_crypto_box_seal`. Only that system's private key can open it. |
+| Term | Meaning                                                                                                                                                                                                                                                                                             |
+|------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **KeyPair** | An X25519 asymmetric key pair. Can be generated randomly, derived deterministically from a password/secret, or imported from a raw secret key.                                                                                                                                                      |
+| **Domain** | A named scope (e.g. `typo3/user-settings`). Each domain has one symmetric data key.                                                                                                                                                                                                                 |
+| **Symmetric data key** | A 32-byte XChaCha20-Poly1305 key used for the actual data encryption in your application.                                                                                                                                                                                                           |
+| **Sealed entry** | The symmetric data key encrypted with one system's public key via `sodium_crypto_box_seal`. Only that system's private key can open it.                                                                                                                                                             |
 | **Key entry** | A `KeyEntry` value object that pairs a public key with an optional `comment` and an `imported` timestamp. The persistent list of entries is stored under `keys` in `secrets.json` and is automatically included whenever a new domain is created. Managed via `addPublicKeys` / `removePublicKeys`. |
-| **Storage** | A `secrets.json` file that holds all sealed entries for all domains. It contains no plaintext key material and is safe to commit to version control. |
+| **Storage** | A `secrets.json` file that holds all sealed entries for all domains. It contains no plaintext key material and is safe to commit to version control.                                                                                                                                                |
+| **Cipher** | Encrypts and decrypts arbitrary values using a domain's symmetric data key (XChaCha20-Poly1305). The domain name is used as AEAD additional data, so a ciphertext sealed under one domain cannot be decrypted under another.                                                                        |
+| **Signer** | Computes and verifies HMAC-SHA512-256 message authentication codes using a domain's symmetric data key. Deterministic: the same domain, key, and message always produce the same MAC.                                                                                                               |
 
 ## Quick start
 
@@ -115,6 +117,42 @@ $prodService->listPublicKeys();
 // [KeyEntry($devPublicKey, comment: 'Dev instance', imported: ...)]
 ```
 
+## Encrypting data
+
+`Cipher` wraps XChaCha20-Poly1305 encryption around a domain's data key. Any system that holds a matching private key and is registered in the domain can encrypt and decrypt values.
+
+```php
+use OliverHader\SecretsKms\Cipher;
+
+$cipher = new Cipher($manager);
+
+// Encrypt — returns a URL-safe base64 string (nonce + ciphertext, no padding)
+$sealed = $cipher->sealWithDomainDataKey('typo3/user-settings', 'my secret value');
+
+// Decrypt — returns the original plaintext
+$plaintext = $cipher->unsealWithDomainDataKey('typo3/user-settings', $sealed);
+```
+
+The domain name is bound to the ciphertext as AEAD additional data: a value sealed under `typo3/user-settings` cannot be decrypted under `typo3/registry-data`, even if both domains use the same system key. Each call to `sealWithDomainDataKey` produces a different ciphertext because a random 24-byte nonce is prepended.
+
+## Signing messages
+
+`Signer` computes HMAC-SHA512-256 (truncated HMAC-SHA-512) message authentication codes using a domain's data key. It is useful when you need to verify that a message was produced by a system with access to a given domain, without encrypting the message.
+
+```php
+use OliverHader\SecretsKms\Signer;
+
+$signer = new Signer($manager);
+
+// Sign — returns a URL-safe base64 string (32-byte MAC, no padding)
+$mac = $signer->sign('typo3/user-settings', $message);
+
+// Verify — returns true if the MAC is valid for this domain and message
+$valid = $signer->verify('typo3/user-settings', $message, $mac);
+```
+
+The MAC is deterministic: the same domain, key, and message always produce the same output. Any system registered in the domain can both sign and verify. A MAC computed under one domain will not verify under another because each domain has its own data key.
+
 ## Full API
 
 ```php
@@ -134,6 +172,28 @@ Passing a `string` is equivalent to `KeyPair::fromSeed($string)`.
 | `extendAll(PublicKey ...$publicKeys): void` | Calls `extendDomain` for every registered domain. |
 | `reduceAll(PublicKey ...$publicKeys): void` | Calls `reduceDomain` for every registered domain. |
 | `listDomains(): array` | Returns all registered domain names. |
+
+### Cipher
+
+```php
+$cipher = new Cipher(Manager $manager);
+```
+
+| Method | Description |
+|--------|-------------|
+| `sealWithDomainDataKey(string $domain, string $plaintext): string` | Encrypts `$plaintext` with the domain's data key and a random nonce. Returns URL-safe base64 (nonce + ciphertext). Throws `DomainNotFoundException` if the domain does not exist or the caller has no access. |
+| `unsealWithDomainDataKey(string $domain, string $sealed): string` | Decrypts a value previously produced by `sealWithDomainDataKey`. Throws `InvalidKeyMaterialException` on invalid base64, `DecryptionException` if the input is malformed or decryption fails. |
+
+### Signer
+
+```php
+$signer = new Signer(Manager $manager);
+```
+
+| Method | Description                                                                                                                                                                                                                            |
+|--------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `sign(string $domain, string $message): string` | Computes an HMAC-SHA512-256 MAC over `$message` using the domain's data key. Returns URL-safe base64 (32 bytes, no padding). Deterministic. Throws `DomainNotFoundException` if the domain does not exist or the caller has no access. |
+| `verify(string $domain, string $message, string $mac): bool` | Verifies that `$mac` is a valid MAC for `$message` under the domain's data key. Returns `false` on mismatch. Throws `InvalidKeyMaterialException` on invalid base64 or wrong MAC byte length.                                          |
 
 ### Key list management
 

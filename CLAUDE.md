@@ -17,6 +17,7 @@ src/
   Storage.php            File-backed JSON implementation; deserialises to/from model objects
   Manager.php            All domain and public-key lifecycle operations
   Cipher.php             Symmetric encrypt/decrypt using a domain's data key
+  Signer.php             HMAC-SHA512-256 sign/verify using a domain's data key
   Key/
     KeyPair.php          X25519 key pair — generate, derive from seed, import
     PublicKey.php        Wraps raw 32-byte X25519 public key with base64url / multibase encoding
@@ -46,6 +47,8 @@ src/
 | Derive key pair from seed | `sodium_crypto_box_seed_keypair(sodium_crypto_generichash($seed, '', 32))` |
 | Encrypt a value (Cipher) | `sodium_crypto_aead_xchacha20poly1305_ietf_encrypt($plaintext, $domain, $nonce, $dataKey)` |
 | Decrypt a value (Cipher) | `sodium_crypto_aead_xchacha20poly1305_ietf_decrypt($ciphertext, $domain, $nonce, $dataKey)` |
+| Compute MAC (Signer) | `sodium_crypto_auth($message, $dataKey)` |
+| Verify MAC (Signer) | `sodium_crypto_auth_verify($mac, $message, $dataKey)` |
 | Encode keys/ciphertexts | `sodium_bin2base64($bytes, SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING)` |
 
 ### secrets.json structure
@@ -101,6 +104,8 @@ src/
 | 1778152637 | `InvalidKeyMaterialException` | `Cipher::unsealWithDomainDataKey` — invalid base64 encoding |
 | 1778512521 | `InvalidKeyMaterialException` | `unsealDataKey` — invalid base64 in sealed data key |
 | 1778512522 | `InvalidKeyMaterialException` | `PublicKey::fromEncoded` — invalid base64 encoding |
+| 1778512523 | `InvalidKeyMaterialException` | `Signer::verify` — invalid base64 in MAC |
+| 1778512524 | `InvalidKeyMaterialException` | `Signer::verify` — MAC has wrong byte length |
 
 ## Coding conventions
 
@@ -118,4 +123,4 @@ composer install
 vendor/bin/phpunit --testdox
 ```
 
-All 66 tests must pass with no warnings. Two tests (`testLoadThrowsOnUnreadableFile`, `testSaveThrowsOnUnwritableDirectory`) use `chmod` and skip themselves when running as root.
+All 78 tests must pass with no warnings. Two tests (`testLoadThrowsOnUnreadableFile`, `testSaveThrowsOnUnwritableDirectory`) use `chmod` and skip themselves when running as root.
